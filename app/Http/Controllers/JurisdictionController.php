@@ -1,9 +1,11 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\Framework;
 use App\Models\Jurisdiction;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Http\RedirectResponse;
 
 class JurisdictionController extends Controller
 {
@@ -13,26 +15,25 @@ class JurisdictionController extends Controller
             'jurisdictions' => Jurisdiction::orderBy('name')->get(),
         ]);
     }
-public function create()
-{
-    $jurisdictions = Jurisdiction::all();
+    public function create()
+    {
+        $jurisdictions = Jurisdiction::all();
 
-    return Inertia::render('Frameworks/Create', [
-        'jurisdictions' => $jurisdictions,
-    ]);
-}
+        return Inertia::render('Frameworks/Create', [
+            'jurisdictions' => $jurisdictions,
+        ]);
+    }
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|unique:jurisdictions,name',
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:jurisdictions,name'
         ]);
 
-        Jurisdiction::create([
-            'name' => trim($request->name),
-        ]);
+        $jurisdiction = Jurisdiction::create($validated);
 
-        return back()->with('success', 'Jurisdiction créée');
+        return redirect()->back()->with('newJurisdiction', $jurisdiction);
     }
+
 
     public function update(Request $request, Jurisdiction $jurisdiction)
     {
@@ -47,11 +48,22 @@ public function create()
         return back()->with('success', 'Jurisdiction mise à jour');
     }
 
-    public function destroy(Jurisdiction $jurisdiction)
-    {
-        $jurisdiction->delete();
+public function destroy(Jurisdiction $jurisdiction): RedirectResponse
+{
+    $framework = Framework::where('is_deleted', 0)
+        ->where('jurisdiction', $jurisdiction->id)
+        ->first();
 
-        return back()->with('success', 'Jurisdiction supprimée');
+    if ($framework) {
+        return back()->with('error', 'La suppression de cette juridiction est impossible car elle est affectée à un framework.');
     }
+
+    $jurisdiction->is_deleted = 1;
+    $jurisdiction->save();
+
+    // Retour Inertia avec message de succès
+    return back()->with('success', 'Jurisdiction supprimée avec succès.');
+}
+
 }
 

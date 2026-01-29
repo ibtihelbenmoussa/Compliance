@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('jurisdictions', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+             $table->unsignedBigInteger('is_deleted')->default(0);
             $table->timestamps();
         });
     }

@@ -32,9 +32,9 @@ class FrameworkController extends Controller
 
     public function create()
     {
-       // $jurisdictions = Jurisdiction::all();
+        $jurisdictions = Jurisdiction::where('is_deleted','=',0)->get();
         return Inertia::render('Frameworks/Create', [
-          //  'jurisdictions' => $jurisdictions,
+            'jurisdictions' => $jurisdictions,
         ]);
 
     }

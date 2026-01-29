@@ -255,13 +255,13 @@ export default function FrameworksIndex() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Framework</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer "{frameworkToDelete?.name}" ?
+               Are you sure you want to delete "{frameworkToDelete?.name}" ?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive" onClick={confirmDelete}>
-              Supprimer
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

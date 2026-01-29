@@ -43,7 +43,6 @@ export default function MacroProcessCreate({
         is_active: true,
     });
 
-    // Update business_unit_id if selectedBusinessUnitId prop changes
     useEffect(() => {
         if (selectedBusinessUnitId && !data.business_unit_id) {
             setData('business_unit_id', selectedBusinessUnitId.toString());
