@@ -2,14 +2,17 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Jurisdiction  extends Model
+class Jurisdiction extends Model
 {
-       protected $table = 'jurisdictions';
+    use HasFactory;
 
+    protected $fillable = ['name'];
 
-    protected $fillable = [
-        'name',
-    ];
+    public function frameworks()
+    {
+        return $this->hasMany(Framework::class);
+    }
 }

@@ -23,18 +23,19 @@ class JurisdictionController extends Controller
             'jurisdictions' => $jurisdictions,
         ]);
     }
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:jurisdictions,name'
-        ]);
+public function store(Request $request)
+{
+    $validated = $request->validate([
+        'name' => 'required|string|max:255|unique:jurisdictions,name'
+    ]);
 
-        $jurisdiction = Jurisdiction::create($validated);
+    $jurisdiction = Jurisdiction::create($validated);
 
-        return redirect()->back()->with('newJurisdiction', $jurisdiction);
-    }
-
-
+    // On garde le redirect, mais Inertia doit recevoir la nouvelle prop
+    return redirect()->back()->with([
+        'success' => 'Jurisdiction créée avec succès.'
+    ]);
+}
     public function update(Request $request, Jurisdiction $jurisdiction)
     {
         $request->validate([
@@ -51,19 +52,24 @@ class JurisdictionController extends Controller
 public function destroy(Jurisdiction $jurisdiction): RedirectResponse
 {
     $framework = Framework::where('is_deleted', 0)
-        ->where('jurisdiction', $jurisdiction->id)
+        ->where('jurisdiction_id', $jurisdiction->id)
         ->first();
 
     if ($framework) {
-        return back()->with('error', 'La suppression de cette juridiction est impossible car elle est affectée à un framework.');
+        return redirect()->back()
+            ->with('error', 'Deletion of this jurisdiction is impossible because it is assigned to a framework.');
     }
 
     $jurisdiction->is_deleted = 1;
     $jurisdiction->save();
 
-    // Retour Inertia avec message de succès
-    return back()->with('success', 'Jurisdiction supprimée avec succès.');
+    return redirect()->back()
+        ->with('success', 'The jurisdiction has been successfully deleted.');
 }
+
+
+
+
 
 }
 

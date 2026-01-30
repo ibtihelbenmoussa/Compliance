@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('frameworks', function (Blueprint $table) {
             $table->bigIncrements('id');
-             $table->bigInteger(column: 'organization_id');
+            $table->bigInteger('organization_id'); // si tu veux une relation avec orga
             $table->string('code')->unique();
             $table->string('name');
             $table->string('version')->nullable();
@@ -24,7 +24,6 @@ return new class extends Migration
 
             $table->string('publisher')->nullable();
 
-            $table->text('jurisdiction')->nullable(); 
             $table->text('scope')->nullable();
 
             $table->enum('status', [
@@ -42,8 +41,11 @@ return new class extends Migration
             $table->string('language')->nullable();
             $table->text('url_reference')->nullable();
             $table->text('tags')->nullable();
-            $table->integer('is_deleted')->default(0); 
- 
+            $table->integer('is_deleted')->default(0);
+           $table->integer('jurisdiction_id');
+
+
+          
 
             $table->timestamps();
         });

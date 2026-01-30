@@ -99,8 +99,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
         //jurisdictions
-    Route::resource('jurisdictions', JurisdictionController::class)
-    ->only(['index', 'create', 'store', 'destroy']);
+   Route::resource('jurisdictions', JurisdictionController::class)
+    ->only(['index', 'create', 'store', 'update', 'destroy']);
+
 
 
 

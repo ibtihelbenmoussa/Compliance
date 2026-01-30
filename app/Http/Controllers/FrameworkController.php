@@ -20,7 +20,7 @@ class FrameworkController extends Controller
                 ->with('error', 'Please select an organization first.');
         }
 
-        $frameworks = Framework::where('is_deleted', 0)
+        $frameworks = Framework::with('jurisdiction')-> where('is_deleted', 0)
             ->where('organization_id', $currentOrgId)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -69,7 +69,7 @@ class FrameworkController extends Controller
             'type' => $data['type'],
             'publisher' => $data['publisher'],
             'tags' => $data['tags'],
-            'jurisdiction' => $request['jurisdiction'],
+    'jurisdiction_id' => $request->jurisdiction_id ?? null,
             'scope' => $data['scope'],
             'status' => $data['status'],
             'release_date' => $data['release_date'],
@@ -81,7 +81,6 @@ class FrameworkController extends Controller
             'organization_id' => $currentOrgId,
         ]);
 
-        // Si une Jurisdiction est choisie, on lui assigne le framework
         if (!empty($data['jurisdiction_id'])) {
             $jurisdiction = Jurisdiction::find($data['jurisdiction_id']);
             $jurisdiction->framework_id = $framework->id;
@@ -144,13 +143,10 @@ class FrameworkController extends Controller
 
         $framework->update($data);
 
-        // Met à jour la Jurisdiction
         if (!empty($data['jurisdiction_id'])) {
-            // Détache les anciennes Jurisdictions liées
             Jurisdiction::where('framework_id', $framework->id)
                 ->update(['framework_id' => null]);
 
-            // Assigne la nouvelle
             $jurisdiction = Jurisdiction::find($data['jurisdiction_id']);
             $jurisdiction->framework_id = $framework->id;
             $jurisdiction->save();

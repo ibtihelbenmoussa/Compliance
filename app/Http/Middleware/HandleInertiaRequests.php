@@ -2,59 +2,48 @@
 
 namespace App\Http\Middleware;
 
-
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
-    /**
-     * The root template that's loaded on the first page visit.
-     *
-     * @see https://inertiajs.com/server-side-setup#root-template
-     *
-     * @var string
-     */
     protected $rootView = 'app';
 
-    /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
-     */
     public function version(Request $request): ?string
     {
         return parent::version($request);
     }
 
-    /**
-     * Define the props that are shared by default.
-     *
-     * @see https://inertiajs.com/shared-data
-     *
-     * @return array<string, mixed>
-     */
     public function share(Request $request): array
     {
-
-
         $user = $request->user();
         $currentOrganization = null;
 
         if ($user) {
-            // Load current organization with user's organizations for switcher
-            $user->load(['currentOrganization:id,name,code', 'organizations:id,name,code']);
+            $user->load([
+                'currentOrganization:id,name,code',
+                'organizations:id,name,code'
+            ]);
             $currentOrganization = $user->currentOrganization;
         }
 
-        return [
-            ...parent::share($request),
+        return array_merge(parent::share($request), [
             'name' => config('app.name'),
+
             'auth' => [
                 'user' => $user,
             ],
+
             'currentOrganization' => $currentOrganization,
-            'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
-        ];
+
+            'sidebarOpen' => ! $request->hasCookie('sidebar_state')
+                || $request->cookie('sidebar_state') === 'true',
+
+            // ✅ FLASH MESSAGES (LA CLÉ DE TON PROBLÈME)
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error'   => fn () => $request->session()->get('error'),
+            ],
+        ]);
     }
 }

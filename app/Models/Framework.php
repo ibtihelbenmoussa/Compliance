@@ -17,26 +17,13 @@ class Framework extends Model
         'retired_date' => 'date',
     ];
 
-    // ===================================
-    // Jurisdiction
-    public function getJurisdictionAttribute($value)
+    // Relation avec Jurisdiction
+    public function jurisdiction()
     {
-        if (!$value) return [];
-        if (is_array($value)) return $value;
-        return explode(',', $value);
+        return $this->belongsTo(Jurisdiction::class);
     }
 
-    public function setJurisdictionAttribute($value)
-    {
-        if (is_array($value)) {
-            $this->attributes['jurisdiction'] = implode(',', $value);
-        } else {
-            $this->attributes['jurisdiction'] = $value;
-        }
-    }
-
-    // ===================================
-    // Tags
+    // Gestion des tags (reste identique si tu veux garder le CSV)
     public function getTagsAttribute($value)
     {
         if (!$value) return [];
@@ -51,9 +38,5 @@ class Framework extends Model
         } else {
             $this->attributes['tags'] = $value;
         }
-    }
-    public function jurisdictions()
-    {
-        return $this->hasMany(Jurisdiction::class);
     }
 }

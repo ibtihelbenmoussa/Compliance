@@ -42,7 +42,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-
+interface Jurisdiction {
+  id: number
+  name: string
+}
 interface Framework {
   id: number
   code: string
@@ -50,7 +53,7 @@ interface Framework {
   version?: string | null
   type: string
   publisher?: string | null
-  jurisdiction: string[] | string | null
+   jurisdiction: Jurisdiction | null
   scope?: string | null
   status: string
   updated_at?: string | null
@@ -199,7 +202,7 @@ export default function FrameworksIndex() {
                   <TableCell>{fw.version ?? '-'}</TableCell>
                   <TableCell>{fw.type}</TableCell>
                   <TableCell>{fw.publisher ?? '-'}</TableCell>
-                  <TableCell>{parseArray(fw.jurisdiction).join(', ') || '-'}</TableCell>
+                 <TableCell>{fw.jurisdiction?.name ?? '-'}</TableCell>
 
                   <TableCell className="text-right">
                     <DropdownMenu>
