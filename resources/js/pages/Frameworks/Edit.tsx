@@ -1,312 +1,258 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Head, useForm, usePage, Link } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { format } from 'date-fns'
+import { Card, CardContent } from '@/components/ui/card'
+import { ChevronLeft, ChevronDownIcon } from 'lucide-react'
 
 export default function EditFramework() {
-  const { framework } = usePage<{ framework: any }>().props
+  const { framework, jurisdictions } = usePage<{ 
+    framework: any; 
+    jurisdictions: { id: number; name: string }[] 
+  }>().props
 
-  const formatDate = (date: string | null) => {
-    if (!date) return ''
-    // Laravel renvoie souvent "2026-01-23T00:00:00.000000Z"
-    return date.split('T')[0]
-  }
+  const [isMessageOpen, setIsMessageOpen] = useState(false)
+  const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success')
 
-  const { data, setData, put, processing, errors } = useForm({
+  const formatDateString = (date: string | null) => (date ? date.split('T')[0] : '')
+
+  const { data, setData, put, processing } = useForm({
     code: framework.code || '',
     name: framework.name || '',
     version: framework.version || '',
     type: framework.type || 'standard',
+    status: framework.status || 'active',
     publisher: framework.publisher || '',
-   jurisdiction: framework.jurisdiction || [],
+    jurisdiction_id: framework.jurisdiction_id?.toString() || '',
 
     scope: framework.scope || '',
-    status: framework.status || 'active',
-    release_date: formatDate(framework.release_date),
-    effective_date: formatDate(framework.effective_date),
-    retired_date: formatDate(framework.retired_date),
+    release_date: formatDateString(framework.release_date),
+    effective_date: formatDateString(framework.effective_date),
+    retired_date: formatDateString(framework.retired_date),
     description: framework.description || '',
     language: framework.language || '',
     url_reference: framework.url_reference || '',
-    tags: framework.tags || [],
-
+    tags: framework.tags?.[0] || '',
   })
 
-  const jurisdictionsList = [
-    'International',
-    'Union Européenne',
-    'États-Unis',
-    'Tunisie',
-  ]
+  const [releaseDate, setReleaseDate] = useState<Date | undefined>(data.release_date ? new Date(data.release_date) : undefined)
+  const [effectiveDate, setEffectiveDate] = useState<Date | undefined>(data.effective_date ? new Date(data.effective_date) : undefined)
+  const [retiredDate, setRetiredDate] = useState<Date | undefined>(data.retired_date ? new Date(data.retired_date) : undefined)
+
+  const [jurisdictionsList] = useState(jurisdictions) 
 
   const tagsList = [
-    'Sécurité de l’information',
-    'Cybersécurité',
-    'Conformité',
-    'Audit',
-    'Gestion des risques',
-    'RGPD',
-    'Privacy',
-    'ISO 27001',
-    'NIST',
-    'PCI-DSS',
-    'Gouvernance',
-    'Contrôle interne',
-    'Plan d’action',
-    'Reporting',
+    'Sécurité de l’information', 'Cybersécurité', 'Conformité', 'Audit', 'Gestion des risques',
+    'RGPD', 'Privacy', 'ISO 27001', 'NIST', 'PCI-DSS', 'Gouvernance', 'Contrôle interne',
+    'Plan d’action', 'Reporting'
   ]
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Submitting data:', data)
-    put(`/frameworks/${framework.id}`)
+    put(`/frameworks/${framework.id}`, {
+      onSuccess: () => {
+        setMessage('Framework updated successfully.')
+        setMessageType('success')
+        setIsMessageOpen(true)
+      },
+      onError: () => {
+        setMessage('Error updating framework.')
+        setMessageType('error')
+        setIsMessageOpen(true)
+      },
+    })
   }
 
   return (
-    <AppLayout>
-      <Head title="Modifier Framework" />
+    <AppLayout
+      breadcrumbs={[
+        { title: 'Frameworks', href: '/frameworks' },
+        { title: 'Edit', href: '' },
+      ]}
+    >
+      <Head title="Edit Framework" />
 
-      <div className="p-6 max-w-4xl space-y-4">
-        <h1 className="text-xl font-bold">Modifier le Framework</h1>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Code */}
-          <div>
-            <label>Code</label>
-            <input
-              type="text"
-              value={data.code}
-              onChange={e => setData('code', e.target.value)}
-              className="border p-2 w-full"
-              required
-            />
-            {errors.code && <div className="text-red-500">{errors.code}</div>}
-          </div>
-
-          {/* Name */}
-          <div>
-            <label>Nom</label>
-            <input
-              type="text"
-              value={data.name}
-              onChange={e => setData('name', e.target.value)}
-              className="border p-2 w-full"
-              required
-            />
-            {errors.name && <div className="text-red-500">{errors.name}</div>}
-          </div>
-
-          {/* Version */}
-          <div>
-            <label>Version</label>
-            <input
-              type="text"
-              value={data.version}
-              onChange={e => setData('version', e.target.value)}
-              className="border p-2 w-full"
-            />
-          </div>
-
-          {/* Type */}
-          <div>
-            <label>Type</label>
-            <Select value={data.type} onValueChange={v => setData('type', v)}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="standard">Standard</SelectItem>
-                <SelectItem value="regulation">Regulation</SelectItem>
-                <SelectItem value="contract">Contract</SelectItem>
-                <SelectItem value="internal_policy">Internal Policy</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.type && <div className="text-red-500">{errors.type}</div>}
-          </div>
-
-          {/* Publisher */}
-          <div>
-            <label>Publisher</label>
-            <input
-              type="text"
-              value={data.publisher}
-              onChange={e => setData('publisher', e.target.value)}
-              className="border p-2 w-full"
-            />
-          </div>
-
-          {/* Jurisdiction */}
-          <div>
-            <label>Jurisdiction</label>
-            <Select
-              value={data.jurisdiction[0] || ''}
-              onValueChange={v => setData('jurisdiction', v ? [v] : [])}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select jurisdiction" />
-              </SelectTrigger>
-              <SelectContent>
-                {jurisdictionsList.map(j => (
-                  <SelectItem key={j} value={j}>
-                    {j}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.jurisdiction && (
-              <div className="text-red-500">{errors.jurisdiction}</div>
-            )}
-          </div>
-
-          {/* Scope */}
-          <div>
-            <label>Scope</label>
-            <textarea
-              value={data.scope}
-              onChange={e => setData('scope', e.target.value)}
-              className="border p-2 w-full"
-            />
-          </div>
-
-          {/* Status */}
-          <div>
-            <label>Status</label>
-            <Select
-              value={data.status}
-              onValueChange={v => setData('status', v)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="deprecated">Deprecated</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.status && <div className="text-red-500">{errors.status}</div>}
-          </div>
-
-          {/* Dates */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label>Release Date</label>
-              <input
-                type="date"
-                value={data.release_date}
-                onChange={e => setData('release_date', e.target.value)}
-                className="border p-2 w-full"
-              />
-              {errors.release_date && (
-                <div className="text-red-500">{errors.release_date}</div>
-              )}
-            </div>
-            <div>
-              <label>Effective Date</label>
-              <input
-                type="date"
-                value={data.effective_date}
-                onChange={e => setData('effective_date', e.target.value)}
-                className="border p-2 w-full"
-              />
-              {errors.effective_date && (
-                <div className="text-red-500">{errors.effective_date}</div>
-              )}
-            </div>
-            <div>
-              <label>Retired Date</label>
-              <input
-                type="date"
-                value={data.retired_date}
-                onChange={e => setData('retired_date', e.target.value)}
-                className="border p-2 w-full"
-              />
-              {errors.retired_date && (
-                <div className="text-red-500">{errors.retired_date}</div>
-              )}
+      {/* Message Modal */}
+      {isMessageOpen && message && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
+          <div
+            className={`bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl border ${
+              messageType === 'success' ? 'border-green-500' : 'border-red-500'
+            }`}
+          >
+            <h3 className={`text-lg font-semibold mb-2 ${messageType === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+              {messageType === 'success' ? 'Succès' : 'Erreur'}
+            </h3>
+            <p className="text-gray-700 dark:text-gray-200">{message}</p>
+            <div className="flex justify-end mt-4">
+              <Button variant="outline" onClick={() => setIsMessageOpen(false)}>Fermer</Button>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Description */}
+      <div className="space-y-6 p-4">
+        <div className="flex items-center justify-between">
           <div>
-            <label>Description</label>
-            <textarea
-              value={data.description}
-              onChange={e => setData('description', e.target.value)}
-              className="border p-2 w-full"
-            />
+            <h1 className="text-3xl font-bold tracking-tight">Edit Framework</h1>
+            <p className="text-muted-foreground">Modify your framework</p>
           </div>
-
-          {/* Language */}
-          <div>
-            <label>Language</label>
-            <input
-              type="text"
-              value={data.language}
-              onChange={e => setData('language', e.target.value)}
-              className="border p-2 w-full"
-            />
-          </div>
-
-          {/* URL Reference */}
-          <div>
-            <label>URL Reference</label>
-            <input
-              type="text"
-              value={data.url_reference}
-              onChange={e => setData('url_reference', e.target.value)}
-              className="border p-2 w-full"
-            />
-          </div>
-
-          {/* Tags */}
-          <div>
-            <label>Tags</label>
-            <Select
-              value={data.tags[0] || ''}
-              onValueChange={v => setData('tags', v ? [v] : [])}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select tags" />
-              </SelectTrigger>
-              <SelectContent>
-                {tagsList.map(tag => (
-                  <SelectItem key={tag} value={tag}>
-                    {tag}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Submit */}
-          <div className="flex items-center gap-2">
-            <Button type="submit" disabled={processing}>
-              Mettre à jour
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/frameworks">
+                <ChevronLeft className="mr-2 h-4 w-4" /> Back
+              </Link>
             </Button>
-            <Link href="/frameworks" className="text-blue-500">
-              Annuler
-            </Link>
           </div>
+        </div>
 
-          {/* Affichage des erreurs Laravel */}
-          {Object.keys(errors).length > 0 && (
-            <div className="text-red-500 text-sm">
-              {Object.entries(errors).map(([field, message]: any) => (
-                <div key={field}>{message}</div>
-              ))}
-            </div>
-          )}
-        </form>
+        <Card className="w-full">
+          <CardContent className="pt-6">
+            <form onSubmit={submit} className="space-y-6">
+              {/* Code & Name */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Code" required>
+                  <Input value={data.code} onChange={e => setData('code', e.target.value)} />
+                </Field>
+                <Field label="Name" required>
+                  <Input value={data.name} onChange={e => setData('name', e.target.value)} />
+                </Field>
+              </div>
+
+              {/* Version • Type • Status */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Field label="Version">
+                  <Input value={data.version} onChange={e => setData('version', e.target.value)} />
+                </Field>
+                <Field label="Type" required>
+                  <Select value={data.type} onValueChange={v => setData('type', v)}>
+                    <SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard</SelectItem>
+                      <SelectItem value="regulation">Regulation</SelectItem>
+                      <SelectItem value="contract">Contract</SelectItem>
+                      <SelectItem value="internal_policy">Internal Policy</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Status" required>
+                  <Select value={data.status} onValueChange={v => setData('status', v)}>
+                    <SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="deprecated">Deprecated</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+
+              {/* Publisher • Jurisdiction • Scope */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Field label="Publisher">
+                  <Input value={data.publisher} onChange={e => setData('publisher', e.target.value)} />
+                </Field>
+               <Field label="Jurisdiction" required>
+  <Select
+    value={data.jurisdiction_id}
+    onValueChange={(v) => setData('jurisdiction_id', v)}
+  >
+    <SelectTrigger>
+      <SelectValue placeholder="Select jurisdiction" />
+    </SelectTrigger>
+    <SelectContent>
+      {jurisdictions.map((j) => (
+        <SelectItem key={j.id} value={j.id.toString()}>
+          {j.name}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</Field>
+
+                <Field label="Scope">
+                  <Input value={data.scope} onChange={e => setData('scope', e.target.value)} />
+                </Field>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <DateField label="Release Date" selectedDate={releaseDate} onSelect={d => { setReleaseDate(d); setData('release_date', d ? formatDateString(d.toISOString()) : '') }} />
+                <DateField label="Effective Date" selectedDate={effectiveDate} onSelect={d => { setEffectiveDate(d); setData('effective_date', d ? formatDateString(d.toISOString()) : '') }} />
+                <DateField label="Retired Date" selectedDate={retiredDate} onSelect={d => { setRetiredDate(d); setData('retired_date', d ? formatDateString(d.toISOString()) : '') }} />
+              </div>
+
+              {/* Description */}
+              <Field label="Description">
+                <Textarea rows={3} value={data.description} onChange={e => setData('description', e.target.value)} />
+              </Field>
+
+              {/* Language & URL */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Language">
+                  <Input value={data.language} onChange={e => setData('language', e.target.value)} />
+                </Field>
+                <Field label="Url Reference">
+                  <Input type="url" value={data.url_reference} onChange={e => setData('url_reference', e.target.value)} />
+                </Field>
+              </div>
+
+              {/* Tags */}
+              <Field label="Tags">
+                <Select value={data.tags} onValueChange={v => setData('tags', v)}>
+                  <SelectTrigger><SelectValue placeholder="Select a tag" /></SelectTrigger>
+                  <SelectContent>
+                    {tagsList.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              {/* Submit */}
+              <div className="flex justify-end gap-2 pt-6 border-t">
+                <Button asChild variant="outline"><Link href="/frameworks">Annuler</Link></Button>
+                <Button type="submit" disabled={processing}>Mettre à jour</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </AppLayout>
+  )
+}
+
+// Composant réutilisable pour les champs
+function Field({ label, required, children }: { label: string, required?: boolean, children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <label className="text-sm font-medium flex items-center gap-1">{label}{required && <span className="text-red-500">*</span>}</label>
+      {children}
+    </div>
+  )
+}
+
+// Composant pour gérer les champs de dates avec calendrier
+function DateField({ label, selectedDate, onSelect }: { label: string; selectedDate?: Date; onSelect: (d: Date | undefined) => void }) {
+  return (
+    <Field label={label}>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="w-full justify-between text-left">
+            {selectedDate ? format(selectedDate, 'PPP') : 'Select a date'}
+            <ChevronDownIcon className="ml-2 h-4 w-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0">
+          <Calendar mode="single" selected={selectedDate} onSelect={onSelect} />
+        </PopoverContent>
+      </Popover>
+    </Field>
   )
 }

@@ -6,6 +6,8 @@ use App\Http\Controllers\FrameworkController;
 use App\Http\Controllers\JurisdictionController;
 use App\Exports\FrameworksExport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Controllers\TagController;
+
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -102,6 +104,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
    Route::resource('jurisdictions', JurisdictionController::class)
     ->only(['index', 'create', 'store', 'update', 'destroy']);
 
+
+// tags
+Route::resource('tags', TagController::class)
+    ->only(['index', 'create', 'store', 'update', 'destroy']);
 
 
 

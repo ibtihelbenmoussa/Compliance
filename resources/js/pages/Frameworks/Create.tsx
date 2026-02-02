@@ -17,6 +17,10 @@ interface Jurisdiction {
   id: number
   name: string
 }
+interface Tag {
+  id: number
+  name: string
+}
 
 interface FrameworkCreateProps {
   jurisdictions: Jurisdiction[]
@@ -51,7 +55,7 @@ export default function CreateFramework({ jurisdictions }: FrameworkCreateProps)
     description: '',
     language: '',
     url_reference: '',
-    tags: '',
+tags: [] as string[],
   })
 
   const { props } = usePage<{ flash?: { success?: string; error?: string } }>()
@@ -91,6 +95,111 @@ const [deleteMessageType, setDeleteMessageType] =
   useState<'success' | 'error'>('success')
 
 
+const [tagsListState, setTagsListState] = useState<string[]>(tagsList)
+const [selectedTags, setSelectedTags] = useState<string[]>(data.tags || [])
+
+const [isTagsModalOpen, setIsTagsModalOpen] = useState(false)
+const [newTag, setNewTag] = useState('')
+const [tagToEdit, setTagToEdit] = useState<string | null>(null)
+const [editedTagName, setEditedTagName] = useState('')
+
+const openTagsModal = () => setIsTagsModalOpen(true)
+const closeTagsModal = () => {
+  setIsTagsModalOpen(false)
+  setNewTag('')
+  setTagToEdit(null)
+  setEditedTagName('')
+}
+/* const addTag = () => {
+  const trimmed = newTag.trim()
+  if (!trimmed || tagsListState.includes(trimmed)) return
+
+  const updatedTagsList = [...tagsListState, trimmed]
+  const updatedSelectedTags = [...selectedTags, trimmed]
+
+  setTagsListState(updatedTagsList)
+  setSelectedTags(updatedSelectedTags)
+  setData('tags', updatedSelectedTags) 
+  setNewTag('')
+}
+ */
+
+
+/* const addTag = () => {
+    const trimmed = newTag.trim();
+    if (!trimmed) return;
+
+router.post('/tags', { name: trimmed }, {
+  preserveScroll: true,
+  preserveState: true,
+  onSuccess: (page) => {
+    const props = page.props as any 
+    const created = (props.tags as Tag[]).find(
+      (j: Tag) => j.name === trimmed
+    )
+
+    if (created) {
+      setJurisdictionsList(prev => [...prev, created])
+      setData('tags', created.id.toString())
+      setNewJurisdiction('')
+    }
+    closeJurisdictionList()
+  }, 
+  onError: (errors) => {
+    alert(errors.name?.[0] || 'Erreur lors de la création');
+  },
+});
+}
+ */
+// --- Sélectionner/Désélectionner tag ---
+const toggleTag = (tag: string) => {
+  let newSelected: string[]
+  if (selectedTags.includes(tag)) {
+    newSelected = selectedTags.filter(t => t !== tag)
+  } else {
+    newSelected = [...selectedTags, tag]
+  }
+  setSelectedTags(newSelected)
+setData('tags', newSelected) 
+}
+
+// --- Editer un tag ---
+const startEditTag = (tag: string) => {
+  setTagToEdit(tag)
+  setEditedTagName(tag)
+}
+
+const confirmEditTag = () => {
+  if (!tagToEdit || !editedTagName.trim()) return
+
+  const newTagsList = tagsListState.map(t => (t === tagToEdit ? editedTagName.trim() : t))
+  setTagsListState(newTagsList)
+
+  const newSelected = selectedTags.map(t => (t === tagToEdit ? editedTagName.trim() : t))
+  setSelectedTags(newSelected)
+ setData('tags', newSelected) 
+
+
+  closeTagsModal()
+}
+
+// --- Supprimer tag ---
+const deleteTag = (tag: string) => {
+  const newTagsList = tagsListState.filter(t => t !== tag)
+  const newSelected = selectedTags.filter(t => t !== tag)
+
+  setTagsListState(newTagsList)
+  setSelectedTags(newSelected)
+setData('tags', newSelected) 
+
+}
+
+
+
+
+
+
+
   useEffect(() => {
     if (!flash) return
 
@@ -107,10 +216,11 @@ const [deleteMessageType, setDeleteMessageType] =
     return () => clearTimeout(timer)
   }, [flash])
 
-  const submit = (e: React.FormEvent) => {
+const submit = (e: React.FormEvent) => {
     e.preventDefault()
     post('/frameworks')
-  }
+}
+
 
  
   const openJurisdictionList = () => setIsJurisdictionListOpen(true)
@@ -301,6 +411,10 @@ const confirmEditJurisdiction = () => {
             <Button variant="outline" onClick={openJurisdictionList}>
               Juridictions
             </Button>
+
+<Button variant="outline" onClick={openTagsModal}>
+  Tags
+</Button>
           </div>
         </div>
 
@@ -490,20 +604,22 @@ const confirmEditJurisdiction = () => {
                 </Field>
               </div>
 
-              <Field label="Tags">
-                <Select value={data.tags} onValueChange={(v) => setData('tags', v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a tag" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tagsList.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+ <Field label="Tags">
+  <div className="flex flex-wrap gap-2">
+    {selectedTags.length === 0 && <span className="text-gray-400">No tags selected</span>}
+    {selectedTags.map(tag => (
+      <span
+        key={tag}
+        className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm"
+      >
+        {tag}
+      </span>
+    ))}
+  </div>
+  <Button className="mt-2" onClick={openTagsModal}>Manage Tags</Button>
+</Field>
+
+
 
               <div className="flex justify-end gap-2 pt-6 border-t">
                 <Button type="button" variant="outline">
@@ -547,9 +663,17 @@ const confirmEditJurisdiction = () => {
 
       {/* Modal Liste des Juridictions */}
       {isJurisdictionListOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6 relative shadow-2xl">
-            <button
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
+ <div className="
+      bg-gray-900/80
+      backdrop-blur-xl
+      border border-white/10
+      rounded-2xl
+      w-full max-w-lg max-h-[80vh]
+      overflow-y-auto
+      p-6
+      shadow-2xl
+    ">            <button
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"
               onClick={closeJurisdictionList}
             >
@@ -561,56 +685,75 @@ const confirmEditJurisdiction = () => {
                Select or delete a jurisdiction
             </p>
 
-            <ul className="space-y-2 mb-6">
-              {jurisdictionsList.length === 0 ? (
-                <li className="text-center text-muted-foreground py-4">No jurisdictions available</li>
-              ) : (
-                jurisdictionsList.map((j) => (
-                  <li
-                    key={j.id}
-                    className="flex justify-between items-center py-2 px-3 border-b hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                  >
-                   <span>{j.name}</span>
-<div className="flex gap-2">
-  {/* Select */}
-  <Button
-    size="icon"
-    variant="outline"
-    title="Select jurisdiction"
-    onClick={() => {
-      setData('jurisdiction_id', j.id.toString())
-      closeJurisdictionList()
-    }}
-  >
-    <Check className="h-4 w-4" />
-  </Button>
+   <ul className="space-y-3 mb-6">
+  {jurisdictionsList.length === 0 ? (
+    <li className="text-center text-muted-foreground py-8">
+      No jurisdictions available
+    </li>
+  ) : (
+    jurisdictionsList.map((j) => (
+      <li
+        key={j.id}
+        className="
+          group flex items-center justify-between
+          rounded-xl border border-gray-200 dark:border-gray-700
+          bg-white dark:bg-gray-900
+          px-4 py-3
+          shadow-sm
+          transition-all duration-200
+          hover:shadow-md
+          hover:bg-gray-50 dark:hover:bg-gray-800
+        "
+      >
+        {/* Name */}
+        <span className="font-medium text-gray-900 dark:text-gray-100">
+          {j.name}
+        </span>
 
-  {/* Edit */}
-  <Button
-    size="icon"
-    variant="secondary"
-    title="Edit jurisdiction"
-    onClick={() => requestEditJurisdiction(j)}
-  >
-    <Pencil className="h-4 w-4" />
-  </Button>
+        {/* Actions */}
+        <div className="
+          flex gap-2
+          opacity-0 group-hover:opacity-100
+          transition-opacity duration-200
+        ">
+          {/* Select */}
+          <Button
+            size="icon"
+            variant="outline"
+            title="Select"
+            onClick={() => {
+              setData('jurisdiction_id', j.id.toString())
+              closeJurisdictionList()
+            }}
+          >
+            <Check className="h-4 w-4 text-green-600" />
+          </Button>
 
-  {/* Delete */}
-  <Button
-    size="icon"
-    variant="destructive"
-    title="Delete jurisdiction"
-    onClick={() => requestDeleteJurisdiction(j)}
-  >
-    <Trash2 className="h-4 w-4" />
-  </Button>
-</div>
+          {/* Edit */}
+          <Button
+            size="icon"
+            variant="outline"
+            title="Edit"
+            onClick={() => requestEditJurisdiction(j)}
+          >
+            <Pencil className="h-4 w-4 text-blue-600" />
+          </Button>
 
+          {/* Delete */}
+          <Button
+            size="icon"
+            variant="outline"
+            title="Delete"
+            onClick={() => requestDeleteJurisdiction(j)}
+          >
+            <Trash2 className="h-4 w-4 text-red-600" />
+          </Button>
+        </div>
+      </li>
+    ))
+  )}
+</ul>
 
-                  </li>
-                ))
-              )}
-            </ul>
 
             <div className="flex gap-2">
               <Input
@@ -658,6 +801,76 @@ const confirmEditJurisdiction = () => {
     </div>
   </div>
 )}
+
+
+{isTagsModalOpen && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
+    <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+      <button
+        className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"
+        onClick={closeTagsModal}
+      >
+        <X size={20} />
+      </button>
+
+      <h2 className="text-2xl font-semibold text-center mb-4">Manage Tags</h2>
+
+      <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
+        {tagsListState.map(tag => (
+          <div
+            key={tag}
+            className="flex justify-between items-center p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selectedTags.includes(tag)}
+                onChange={() => toggleTag(tag)}
+              />
+              <span>{tag}</span>
+            </div>
+            <div className="flex gap-2">
+              <Button size="icon" variant="outline" onClick={() => startEditTag(tag)}>
+                <Pencil className="h-4 w-4 text-blue-600" />
+              </Button>
+              <Button size="icon" variant="outline" onClick={() => deleteTag(tag)}>
+                <Trash2 className="h-4 w-4 text-red-600" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {tagToEdit ? (
+        <div className="flex gap-2 mb-4">
+          <Input
+            value={editedTagName}
+            onChange={e => setEditedTagName(e.target.value)}
+            className="flex-1"
+          />
+          <Button onClick={confirmEditTag}>Save</Button>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <Input
+            placeholder="Add new tag"
+            value={newTag}
+            onChange={e => setNewTag(e.target.value)}
+            className="flex-1"
+          />
+{/*           <Button onClick={addTag}>Add</Button>
+ */}        </div>
+      )}
+
+      <div className="flex justify-end mt-4">
+        <Button variant="outline" onClick={closeTagsModal}>
+          Close
+        </Button>
+      </div>
+    </div>
+  </div>
+)}
+
 
     </AppLayout>
   )

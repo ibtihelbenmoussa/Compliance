@@ -10,9 +10,10 @@ use Illuminate\Http\RedirectResponse;
 class JurisdictionController extends Controller
 {
     public function index()
-    {
+    {  $user = auth()->user();
+        $currentOrgId = $user->current_organization_id;
         return Inertia::render('Jurisdictions/Index', [
-            'jurisdictions' => Jurisdiction::orderBy('name')->get(),
+            'jurisdictions' => Jurisdiction::orderBy('name')->where('is_deleted','=',0)->where('organization_id','=',$currentOrgId)->get(),
         ]);
     }
     public function create()
@@ -23,19 +24,27 @@ class JurisdictionController extends Controller
             'jurisdictions' => $jurisdictions,
         ]);
     }
-public function store(Request $request)
-{
-    $validated = $request->validate([
-        'name' => 'required|string|max:255|unique:jurisdictions,name'
-    ]);
+    public function store(Request $request)
+    {
+        $user = auth()->user();
+        $currentOrgId = $user->current_organization_id;
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:jurisdictions,name',
+            /*             'organization_id' => $currentOrgId
+             */
+        ]);
+        $jurisdiction = new Jurisdiction();
+        $jurisdiction->name = $request->name;
+        $jurisdiction->organization_id = $currentOrgId;
+        $jurisdiction->save();
+        //   $jurisdiction = Jurisdiction::create($validated);
 
-    $jurisdiction = Jurisdiction::create($validated);
+        // On garde le redirect, mais Inertia doit recevoir la nouvelle prop
 
-    // On garde le redirect, mais Inertia doit recevoir la nouvelle prop
-    return redirect()->back()->with([
-        'success' => 'Jurisdiction créée avec succès.'
-    ]);
-}
+        return redirect()->back()->with([
+            'success' => 'Jurisdiction créée avec succès.'
+        ]);
+    }
     public function update(Request $request, Jurisdiction $jurisdiction)
     {
         $request->validate([
@@ -49,23 +58,23 @@ public function store(Request $request)
         return back()->with('success', 'Jurisdiction mise à jour');
     }
 
-public function destroy(Jurisdiction $jurisdiction): RedirectResponse
-{
-    $framework = Framework::where('is_deleted', 0)
-        ->where('jurisdiction_id', $jurisdiction->id)
-        ->first();
+    public function destroy(Jurisdiction $jurisdiction): RedirectResponse
+    {
+        $framework = Framework::where('is_deleted', 0)
+            ->where('jurisdiction_id', $jurisdiction->id)
+            ->first();
 
-    if ($framework) {
+        if ($framework) {
+            return redirect()->back()
+                ->with('error', 'Deletion of this jurisdiction is impossible because it is assigned to a framework.');
+        }
+
+        $jurisdiction->is_deleted = 1;
+        $jurisdiction->save();
+
         return redirect()->back()
-            ->with('error', 'Deletion of this jurisdiction is impossible because it is assigned to a framework.');
+            ->with('success', 'The jurisdiction has been successfully deleted.');
     }
-
-    $jurisdiction->is_deleted = 1;
-    $jurisdiction->save();
-
-    return redirect()->back()
-        ->with('success', 'The jurisdiction has been successfully deleted.');
-}
 
 
 
