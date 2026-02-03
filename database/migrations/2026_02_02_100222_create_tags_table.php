@@ -15,6 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->boolean('is_deleted')->default(false);
+            $table->bigInteger(column: 'organization_id');
+
             $table->timestamps();
         });
     }

@@ -10,41 +10,52 @@ use Illuminate\Http\RedirectResponse;
 
 class TagController extends Controller
 {
-   public function index()
+    public function index()
     {
         return Inertia::render('Tags/Index', [
             'tags' => Tag::orderBy('name')->get(),
         ]);
     }
 
-   public function create()
+    public function create()
     {
         $tags = Tag::all();
 
         return Inertia::render('Tags/Create', [
-    'tags' => $tags,
-]);
+            'tags' => $tags,
+        ]);
 
 
     }
 
     public function store(Request $request)
-{
-    $validated = $request->validate([
-'name' => 'required|string|max:255|unique:tags,name'
-    ]);
+    {
+        $user = auth()->user();
+        $currentOrgId = $user->current_organization_id;
 
-    $tag = Tag::create($validated);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:tags,name',
+        ]);
 
-    return redirect()->back()->with([
-        'success' => 'Tag créée avec succès.'
-    ]);
-}
+        $tag = new Tag();
+        $tag->name = $request->name;
+        $tag->organization_id = $currentOrgId;
+        $tag->save();
 
-        public function update(Request $request, Tag $tag)
+        return Inertia::render('Frameworks/Create', [
+            'tags' => Tag::where('organization_id', $user->current_organization_id)
+                ->where('is_deleted', 0)->get(),
+            'tag' => $tag, 
+            'flash' => ['success' => 'Tag created successfully']
+        ]);
+    }
+
+
+
+    public function update(Request $request, Tag $tag)
     {
         $request->validate([
-    'name' => 'required|string|unique:tags,name,' . $tag->id,
+            'name' => 'required|string|unique:tags,name,' . $tag->id,
         ]);
 
         $tag->update([
@@ -55,22 +66,22 @@ class TagController extends Controller
     }
 
 
-public function destroy(Tag $tag): RedirectResponse
-{
-    $framework = Framework::where('is_deleted', 0)
-        ->where('tags', $tag->id)
-        ->first();
+    public function destroy(Tag $tag): RedirectResponse
+    {
+        $framework = Framework::where('is_deleted', 0)
+            ->where('tags', $tag->id)
+            ->first();
 
-    if ($framework) {
+        if ($framework) {
+            return redirect()->back()
+                ->with('error', 'Deletion of this tag is impossible because it is assigned to a framework.');
+        }
+
+        $tag->is_deleted = 1;
+        $tag->save();
+
         return redirect()->back()
-            ->with('error', 'Deletion of this tag is impossible because it is assigned to a framework.');
+            ->with('success', 'The tag has been successfully deleted.');
     }
-
-    $tag->is_deleted = 1;
-    $tag->save();
-
-    return redirect()->back()
-        ->with('success', 'The tag has been successfully deleted.');
-}
 
 }

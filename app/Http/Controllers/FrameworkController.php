@@ -21,7 +21,7 @@ class FrameworkController extends Controller
                 ->with('error', 'Please select an organization first.');
         }
 
-        $frameworks = Framework::with('jurisdiction')-> where('is_deleted', 0)
+        $frameworks = Framework::with('jurisdiction')->where('is_deleted', 0)
             ->where('organization_id', $currentOrgId)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -33,10 +33,15 @@ class FrameworkController extends Controller
 
     public function create()
     {
-        $jurisdictions = Jurisdiction::where('is_deleted','=',0)->get();
-        $tags= Tag::where('is_deleted','=',0)->get();
+        $user = auth()->user();
+        $currentOrgId = $user->current_organization_id;
+        $jurisdictions = Jurisdiction::where('is_deleted', '=', 0)->where('organization_id', $currentOrgId)
+            ->get();
+        $tags = Tag::where('is_deleted', '=', 0)->where('organization_id', $currentOrgId)
+            ->get();
         return Inertia::render('Frameworks/Create', [
             'jurisdictions' => $jurisdictions,
+            'tags' => $tags,
         ]);
 
     }
@@ -52,9 +57,7 @@ class FrameworkController extends Controller
         'version' => 'nullable|string|max:255',
         'type' => 'required|in:standard,regulation,contract,internal_policy',
         'publisher' => 'nullable|string|max:255',
-        'tags' => 'nullable|array',
-        'tags.*' => 'string|max:255',
- 
+        'tags' => 'nullable|array', 
         'scope' => 'nullable|string',
         'status' => 'required|in:active,draft,deprecated,archived',
         'release_date' => 'nullable|date',
@@ -66,55 +69,47 @@ class FrameworkController extends Controller
         'jurisdiction_id' => 'nullable|exists:jurisdictions,id',
     ]);
 
-    // 1️⃣ Création du framework
     $framework = Framework::create([
         'name' => $data['name'],
         'code' => $data['code'],
-        'version' => $data['version'],
+        'version' => $data['version'] ?? null,
         'type' => $data['type'],
-        'publisher' => $data['publisher'],
-        'scope' => $data['scope'],
+        'publisher' => $data['publisher'] ?? null,
+        'scope' => $data['scope'] ?? null,
         'status' => $data['status'],
-        'release_date' => $data['release_date'],
-        'effective_date' => $data['effective_date'],
-        'retired_date' => $data['retired_date'],
-        'description' => $data['description'],
-        'language' => $data['language'],
-        'url_reference' => $data['url_reference'],
+        'release_date' => $data['release_date'] ?? null,
+        'effective_date' => $data['effective_date'] ?? null,
+        'retired_date' => $data['retired_date'] ?? null,
+        'description' => $data['description'] ?? null,
+        'language' => $data['language'] ?? null,
+        'url_reference' => $data['url_reference'] ?? null,
         'organization_id' => $currentOrgId,
+        'tags' => !empty($data['tags']) ? json_encode($data['tags']) : null,
         'jurisdiction_id' => $data['jurisdiction_id'] ?? null,
     ]);
-
-    if (!empty($data['tags'])) {
-    foreach ($data['tags'] as $tagName) {
-        $framework->tags()->create([
-            'name' => trim($tagName),
-        ]);
-    }
-}
-
 
     return redirect('/frameworks')
         ->with('success', 'Framework créé avec succès.');
 }
 
-   public function edit(Framework $framework)
-{
-    $jurisdictions = Jurisdiction::where('is_deleted', 0)->get();
 
-    $framework->jurisdiction = is_string($framework->jurisdiction)
-        ? explode(',', $framework->jurisdiction)
-        : (array) $framework->jurisdiction;
+    public function edit(Framework $framework)
+    {
+        $jurisdictions = Jurisdiction::where('is_deleted', 0)->get();
 
-    $framework->tags = is_string($framework->tags)
-        ? explode(',', $framework->tags)
-        : (array) $framework->tags;
+        $framework->jurisdiction = is_string($framework->jurisdiction)
+            ? explode(',', $framework->jurisdiction)
+            : (array) $framework->jurisdiction;
 
-    return Inertia::render('Frameworks/Edit', [
-        'framework' => $framework,
-        'jurisdictions' => $jurisdictions, 
-    ]);
-}
+        $framework->tags = is_string($framework->tags)
+            ? explode(',', $framework->tags)
+            : (array) $framework->tags;
+
+        return Inertia::render('Frameworks/Edit', [
+            'framework' => $framework,
+            'jurisdictions' => $jurisdictions,
+        ]);
+    }
 
 
     public function show(Framework $framework)
@@ -130,33 +125,33 @@ class FrameworkController extends Controller
         return Inertia::render('Frameworks/Show', [
             'framework' => $framework
         ]);
-    } 
+    }
 
-   public function update(Request $request, Framework $framework)
-{
-    $data = $request->validate([
-        'code' => 'required|unique:frameworks,code,' . $framework->id,
-        'name' => 'required|string|max:255',
-        'version' => 'nullable|string|max:255',
-        'type' => 'required|in:standard,regulation,contract,internal_policy',
-        'publisher' => 'nullable|string|max:255',
-        'jurisdiction_id' => 'nullable|exists:jurisdictions,id',
-        'tags' => 'nullable|string',
-        'scope' => 'nullable|string',
-        'status' => 'required|in:active,draft,deprecated,archived',
-        'release_date' => 'nullable|date',
-        'effective_date' => 'nullable|date',
-        'retired_date' => 'nullable|date',
-        'description' => 'nullable|string',
-        'language' => 'nullable|string',
-        'url_reference' => 'nullable|url',
-    ]);
+    public function update(Request $request, Framework $framework)
+    {
+        $data = $request->validate([
+            'code' => 'required|unique:frameworks,code,' . $framework->id,
+            'name' => 'required|string|max:255',
+            'version' => 'nullable|string|max:255',
+            'type' => 'required|in:standard,regulation,contract,internal_policy',
+            'publisher' => 'nullable|string|max:255',
+            'jurisdiction_id' => 'nullable|exists:jurisdictions,id',
+            'tags' => 'nullable|string',
+            'scope' => 'nullable|string',
+            'status' => 'required|in:active,draft,deprecated,archived',
+            'release_date' => 'nullable|date',
+            'effective_date' => 'nullable|date',
+            'retired_date' => 'nullable|date',
+            'description' => 'nullable|string',
+            'language' => 'nullable|string',
+            'url_reference' => 'nullable|url',
+        ]);
 
-    $framework->update($data);
+        $framework->update($data);
 
-    return redirect('/frameworks')
-        ->with('success', 'Framework mis à jour avec succès.');
-}
+        return redirect('/frameworks')
+            ->with('success', 'Framework mis à jour avec succès.');
+    }
 
 
 
@@ -169,5 +164,5 @@ class FrameworkController extends Controller
             ->with('success', 'Framework supprimé avec succès.');
     }
 
-    
+
 }

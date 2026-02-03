@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('frameworks', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->bigInteger('organization_id'); // si tu veux une relation avec orga
+            $table->bigInteger('organization_id');
             $table->string('code')->unique();
             $table->string('name');
             $table->string('version')->nullable();
