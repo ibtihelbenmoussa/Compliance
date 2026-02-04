@@ -21,10 +21,21 @@ class FrameworkController extends Controller
                 ->with('error', 'Please select an organization first.');
         }
 
-        $frameworks = Framework::with('jurisdiction')->where('is_deleted', 0)
+        $frameworks = Framework::where('is_deleted', 0)
             ->where('organization_id', $currentOrgId)
+            ->with('jurisdiction')
             ->orderBy('created_at', 'desc')
             ->get();
+
+
+        $allTags = Tag::pluck('name', 'id');
+
+
+        $frameworks->map(function ($fw) use ($allTags) {
+            $tagIds = json_decode($fw->tags ?? '[]', true);
+            $fw->tags = collect($tagIds)->map(fn($id) => $allTags[$id] ?? '')->filter()->values();
+            return $fw;
+        });
 
         return Inertia::render('Frameworks/Index', [
             'frameworks' => $frameworks
@@ -46,89 +57,113 @@ class FrameworkController extends Controller
 
     }
 
-   public function store(Request $request)
-{
-    $user = auth()->user();
-    $currentOrgId = $user->current_organization_id;
+    public function store(Request $request)
+    {
+        $user = auth()->user();
+        $currentOrgId = $user->current_organization_id;
 
-    $data = $request->validate([
-        'code' => 'required|string|max:255',
-        'name' => 'required|string|max:255',
-        'version' => 'nullable|string|max:255',
-        'type' => 'required|in:standard,regulation,contract,internal_policy',
-        'publisher' => 'nullable|string|max:255',
-        'tags' => 'nullable|array', 
-        'scope' => 'nullable|string',
-        'status' => 'required|in:active,draft,deprecated,archived',
-        'release_date' => 'nullable|date',
-        'effective_date' => 'nullable|date',
-        'retired_date' => 'nullable|date',
-        'description' => 'nullable|string',
-        'language' => 'nullable|string',
-        'url_reference' => 'nullable|url',
-        'jurisdiction_id' => 'nullable|exists:jurisdictions,id',
-    ]);
+        $data = $request->validate([
+            'code' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
+            'version' => 'nullable|string|max:255',
+            'type' => 'required|in:standard,regulation,contract,internal_policy',
+            'publisher' => 'nullable|string|max:255',
+            'tags' => 'nullable|array',
+            'scope' => 'nullable|string',
+            'status' => 'required|in:active,draft,deprecated,archived',
+            'release_date' => 'nullable|date',
+            'effective_date' => 'nullable|date',
+            'retired_date' => 'nullable|date',
+            'description' => 'nullable|string',
+            'language' => 'nullable|string',
+            'url_reference' => 'nullable|url',
+            'jurisdiction_id' => 'nullable|exists:jurisdictions,id',
+        ]);
 
-    $framework = Framework::create([
-        'name' => $data['name'],
-        'code' => $data['code'],
-        'version' => $data['version'] ?? null,
-        'type' => $data['type'],
-        'publisher' => $data['publisher'] ?? null,
-        'scope' => $data['scope'] ?? null,
-        'status' => $data['status'],
-        'release_date' => $data['release_date'] ?? null,
-        'effective_date' => $data['effective_date'] ?? null,
-        'retired_date' => $data['retired_date'] ?? null,
-        'description' => $data['description'] ?? null,
-        'language' => $data['language'] ?? null,
-        'url_reference' => $data['url_reference'] ?? null,
-        'organization_id' => $currentOrgId,
-        'tags' => !empty($data['tags']) ? json_encode($data['tags']) : null,
-        'jurisdiction_id' => $data['jurisdiction_id'] ?? null,
-    ]);
+        $framework = Framework::create([
+            'name' => $data['name'],
+            'code' => $data['code'],
+            'version' => $data['version'] ?? null,
+            'type' => $data['type'],
+            'publisher' => $data['publisher'] ?? null,
+            'scope' => $data['scope'] ?? null,
+            'status' => $data['status'],
+            'release_date' => $data['release_date'] ?? null,
+            'effective_date' => $data['effective_date'] ?? null,
+            'retired_date' => $data['retired_date'] ?? null,
+            'description' => $data['description'] ?? null,
+            'language' => $data['language'] ?? null,
+            'url_reference' => $data['url_reference'] ?? null,
+            'organization_id' => $currentOrgId,
+            'tags' => !empty($data['tags']) ? json_encode($data['tags']) : null,
+            'jurisdiction_id' => $data['jurisdiction_id'] ?? null,
+        ]);
 
-    return redirect('/frameworks')
-        ->with('success', 'Framework créé avec succès.');
-}
+        return redirect('/frameworks')
+            ->with('success', 'Framework créé avec succès.');
+    }
 
 
     public function edit(Framework $framework)
     {
-        $jurisdictions = Jurisdiction::where('is_deleted', 0)->get();
+        $user = auth()->user();
+        $currentOrgId = $user->current_organization_id;
 
-        $framework->jurisdiction = is_string($framework->jurisdiction)
-            ? explode(',', $framework->jurisdiction)
-            : (array) $framework->jurisdiction;
+        // Juridictions
+        $jurisdictions = Jurisdiction::where('is_deleted', 0)
+            ->where('organization_id', $currentOrgId)
+            ->get(['id', 'name']);
 
-        $framework->tags = is_string($framework->tags)
-            ? explode(',', $framework->tags)
-            : (array) $framework->tags;
+        // Tous les tags
+        $tags = Tag::where('is_deleted', 0)
+            ->where('organization_id', $currentOrgId)
+            ->get(['id', 'name']);
+
+        $selectedTagIds = collect(
+            json_decode($framework->tags ?? '[]', true)
+        )->map(fn($id) => (string) $id)->values();
 
         return Inertia::render('Frameworks/Edit', [
             'framework' => $framework,
             'jurisdictions' => $jurisdictions,
+            'tags' => $tags,
+            'selectedTagIds' => $selectedTagIds,
         ]);
     }
 
 
-    public function show(Framework $framework)
-    {
-        $framework->jurisdiction = is_string($framework->jurisdiction)
-            ? explode(',', $framework->jurisdiction)
-            : (array) $framework->jurisdiction;
 
-        $framework->tags = is_string($framework->tags)
-            ? explode(',', $framework->tags)
-            : (array) $framework->tags;
-
-        return Inertia::render('Frameworks/Show', [
-            'framework' => $framework
-        ]);
+   public function show(Framework $framework)
+{
+   
+    $user = auth()->user();
+    $currentOrgId = $user->current_organization_id;
+ 
+    if ($framework->organization_id != $currentOrgId || $framework->is_deleted) {
+        abort(403, 'Unauthorized');
     }
+ 
+ 
+    $allTags = Tag::pluck('name', 'id');
+ 
+    $tagIds = json_decode($framework->tags ?? '[]', true);
+    $framework->tags_names = collect($tagIds)
+        ->map(fn($id) => $allTags[$id] ?? '')
+        ->filter()
+        ->values()
+        ->toArray();
+ 
+ 
+    $framework->jurisdiction_name = $framework->jurisdiction?->name ?? null;
+ 
+    return Inertia::render('Frameworks/Show', [
+        'framework' => $framework
+    ]);
+}
 
     public function update(Request $request, Framework $framework)
     {
+
         $data = $request->validate([
             'code' => 'required|unique:frameworks,code,' . $framework->id,
             'name' => 'required|string|max:255',
@@ -136,7 +171,8 @@ class FrameworkController extends Controller
             'type' => 'required|in:standard,regulation,contract,internal_policy',
             'publisher' => 'nullable|string|max:255',
             'jurisdiction_id' => 'nullable|exists:jurisdictions,id',
-            'tags' => 'nullable|string',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string',
             'scope' => 'nullable|string',
             'status' => 'required|in:active,draft,deprecated,archived',
             'release_date' => 'nullable|date',
@@ -147,11 +183,18 @@ class FrameworkController extends Controller
             'url_reference' => 'nullable|url',
         ]);
 
+
+        if (isset($data['tags'])) {
+            $data['tags'] = json_encode($data['tags']);
+        }
+
+
         $framework->update($data);
 
         return redirect('/frameworks')
             ->with('success', 'Framework mis à jour avec succès.');
     }
+
 
 
 

@@ -14,14 +14,13 @@ class Framework extends Model
     protected $casts = [
         'release_date' => 'date',
         'tags' => 'array',
-
         'effective_date' => 'date',
         'retired_date' => 'date',
     ];
 
     public function tags()
     {
-        return $this->hasMany(Tag::class);
+        return $this->belongsTo(Tag::class);
     }
 
     public function jurisdiction()

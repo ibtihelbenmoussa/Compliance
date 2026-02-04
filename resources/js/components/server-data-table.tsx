@@ -58,6 +58,7 @@ export interface ServerDataTableProps<TData, TValue> {
     exportLoading?: boolean;
 }
 
+
 export function ServerDataTable<TData, TValue>({
     columns,
     data,

@@ -11,6 +11,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
 import { Check, Pencil, Trash2 } from 'lucide-react'
+import { MultiSelect } from '@/components/ui/multi-select';
+import { Command, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { ChevronsUpDown } from 'lucide-react'
 
 
 interface Jurisdiction {
@@ -32,18 +35,7 @@ interface MyPageProps extends Record<string, any> {
 }
 
 
-/* const tagsList = [
-  'Information Security',
-  'Cybersecurity',
-  'Compliance',
-  'Audit',
-  'Risk Management',
-  'GDPR',
-  'Privacy',
-  'ISO 27001',
-  'NIST',
-  'PCI-DSS',
-] */
+
 
 export default function CreateFramework({ jurisdictions }: FrameworkCreateProps) {
   const { data, setData, post, processing } = useForm({
@@ -65,6 +57,7 @@ export default function CreateFramework({ jurisdictions }: FrameworkCreateProps)
   })
 
   const { props } = usePage<MyPageProps>()
+  
 
   const [releaseDate, setReleaseDate] = useState<Date | undefined>(
     data.release_date ? new Date(data.release_date) : undefined
@@ -90,6 +83,8 @@ export default function CreateFramework({ jurisdictions }: FrameworkCreateProps)
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [jurisdictionToDelete, setJurisdictionToDelete] = useState<Jurisdiction | null>(null)
+  const [open, setOpen] = useState(false)
+
 
   const [message, setMessage] = useState<string | null>(null)
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
@@ -132,10 +127,10 @@ export default function CreateFramework({ jurisdictions }: FrameworkCreateProps)
         // Ajouter dans la sélection
         if (!selectedTags.find(t => t.id === createdTag.id)) {
           const newSelected = [...selectedTags, createdTag];
-          setSelectedTags(newSelected); 
-      }
+          setSelectedTags(newSelected);
+        }
         setNewTag('');
-           closeTagsModal();
+        closeTagsModal();
       },
       onError: () => alert('Erreur lors de la création du tag')
     });
@@ -187,25 +182,31 @@ export default function CreateFramework({ jurisdictions }: FrameworkCreateProps)
     setData('tags', updatedSelectedTags.map(t => t.name));
   }
 
-useEffect(() => {
-  if (!props.flash) return;
+  useEffect(() => {
+    if (!props.flash) return;
 
-  if (props.flash.success) {
-    setMessageType('success');
-    setMessage(props.flash.success);
-    setIsMessageOpen(true);
-  }
+    if (props.flash.success) {
+      setMessageType('success');
+      setMessage(props.flash.success);
+      setIsMessageOpen(true);
+    }
 
-  const timer = setTimeout(() => setIsMessageOpen(false), 5000);
-  return () => clearTimeout(timer);
-}, [props.flash]);
+    const timer = setTimeout(() => setIsMessageOpen(false), 5000);
+    return () => clearTimeout(timer);
+  }, [props.flash]);
 
-const submit = (e: React.FormEvent) => {
+
+
+
+  const submit = (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('data',data)
+    console.log('data', data)
     post('/frameworks')
   }
- const openJurisdictionList = () => setIsJurisdictionListOpen(true)
+
+
+
+  const openJurisdictionList = () => setIsJurisdictionListOpen(true)
   const closeJurisdictionList = () => setIsJurisdictionListOpen(false)
   const closeJurisdictionModal = () => setIsJurisdictionModalOpen(false)
 
@@ -224,7 +225,7 @@ const submit = (e: React.FormEvent) => {
 
         if (created) {
           setJurisdictionsList(prev => [...prev, created])
-          
+          setData('jurisdiction_id', created.id.toString())
           setNewJurisdiction('')
         }
         closeJurisdictionList()
@@ -353,6 +354,8 @@ const submit = (e: React.FormEvent) => {
                 variant="outline"
                 onClick={() => {
                   setIsDeleteModalOpen(false)
+
+
                   setJurisdictionToDelete(null)
                 }}
               >
@@ -439,7 +442,7 @@ const submit = (e: React.FormEvent) => {
                     <SelectContent>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="deprecated">Deprecated</SelectItem>
+                      {/* <SelectItem value="deprecated">Deprecated</SelectItem> */}
                       <SelectItem value="archived">Archived</SelectItem>
                     </SelectContent>
                   </Select>
@@ -447,39 +450,63 @@ const submit = (e: React.FormEvent) => {
               </div>
 
               {/* Publisher • Jurisdiction • Scope */}
+              <h2 className="text-lg font-semibold">Context</h2>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Field label="Publisher">
                   <Input
-                    placeholder="ex: ISO, CNIL, PCI SSC"
                     value={data.publisher}
                     onChange={(e) => setData('publisher', e.target.value)}
                   />
                 </Field>
-                <Field label="Juridiction" required>
-                  <Select
-                    value={data.jurisdiction_id || undefined}
-                    onValueChange={(value) => setData('jurisdiction_id', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a date" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {jurisdictionsList.map((j) => (
-                        <SelectItem key={j.id} value={j.id.toString()}>
-                          {j.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+                <Field label="Jurisdiction">
+                  <Popover open={open} onOpenChange={setOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between">
+                        {data.jurisdiction_id
+                          ? jurisdictions.find(j => j.id === Number(data.jurisdiction_id))?.name
+                          : 'Select jurisdiction'}
+                        <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search jurisdiction..." />
+                        <CommandList>
+                          {jurisdictions.map(j => (
+                            <CommandItem
+                              key={j.id}
+                              value={j.name}
+                              onSelect={() => {
+                                setData('jurisdiction_id', j.id.toString())
+                                setOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${data.jurisdiction_id === j.id.toString()
+                                    ? 'opacity-100'
+                                    : 'opacity-0'
+                                  }`}
+                              />
+                              {j.name}
+                            </CommandItem>
+                          ))}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </Field>
+
                 <Field label="Scope">
                   <Input
-                    placeholder="Information Security, Privacy, Finance..."
                     value={data.scope}
                     onChange={(e) => setData('scope', e.target.value)}
                   />
                 </Field>
               </div>
+
 
               {/* Dates */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -573,29 +600,31 @@ const submit = (e: React.FormEvent) => {
                   />
                 </Field>
               </div>
-
               <Field label="Tags">
-                <div className="flex flex-wrap gap-2">
-                  {selectedTags.length === 0 && <span className="text-gray-400">No tags selected</span>}
-                  {selectedTags.map(tag => (
-                    <span
-                      key={tag.id}
-                      className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm"
-                    >
-                      {tag.name}
-                    </span>
-                  ))}
+                <MultiSelect
+                  options={tagsListState.map((tag) => ({
+                    value: tag.id.toString(),
+                    label: tag.name,
+                  }))}
+                  value={selectedTags.map(t => t.id.toString())}
+                  onValueChange={(selected: string[]) => {
+
+                    const newSelected = tagsListState.filter(tag =>
+                      selected.includes(tag.id.toString())
+                    );
+                    setSelectedTags(newSelected);
 
 
-                </div>
-                <Button className="mt-2" onClick={openTagsModal}>Manage Tags</Button>
+                    setData('tags', newSelected.map(t => t.id.toString()));
+
+                  }}
+                  placeholder="Select tags"
+                />
               </Field>
-
-
 
               <div className="flex justify-end gap-2 pt-6 border-t">
                 <Button type="button" variant="outline">
-                  Annuler
+                  Cancel
                 </Button>
                 <Button type="submit" disabled={processing}>
                   Add

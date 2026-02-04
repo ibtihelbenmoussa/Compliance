@@ -10,11 +10,20 @@ import { Calendar } from '@/components/ui/calendar'
 import { format } from 'date-fns'
 import { Card, CardContent } from '@/components/ui/card'
 import { ChevronLeft, ChevronDownIcon } from 'lucide-react'
+import { MultiSelect } from '@/components/ui/multi-select';
+
+type Tag = {
+  id: number
+  name: string
+}
+
 
 export default function EditFramework() {
-  const { framework, jurisdictions } = usePage<{ 
-    framework: any; 
-    jurisdictions: { id: number; name: string }[] 
+  const { framework, jurisdictions, tags, selectedTagIds } = usePage<{
+    framework: any
+    jurisdictions: { id: number; name: string }[]
+    tags: { id: number; name: string }[]
+    selectedTagIds: string[]
   }>().props
 
   const [isMessageOpen, setIsMessageOpen] = useState(false)
@@ -39,14 +48,16 @@ export default function EditFramework() {
     description: framework.description || '',
     language: framework.language || '',
     url_reference: framework.url_reference || '',
-    tags: framework.tags?.[0] || '',
+    tags: selectedTagIds,
+
+
   })
 
   const [releaseDate, setReleaseDate] = useState<Date | undefined>(data.release_date ? new Date(data.release_date) : undefined)
   const [effectiveDate, setEffectiveDate] = useState<Date | undefined>(data.effective_date ? new Date(data.effective_date) : undefined)
   const [retiredDate, setRetiredDate] = useState<Date | undefined>(data.retired_date ? new Date(data.retired_date) : undefined)
 
-  const [jurisdictionsList] = useState(jurisdictions) 
+  const [jurisdictionsList] = useState(jurisdictions)
 
   const tagsList = [
     'Sécurité de l’information', 'Cybersécurité', 'Conformité', 'Audit', 'Gestion des risques',
@@ -83,9 +94,8 @@ export default function EditFramework() {
       {isMessageOpen && message && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
           <div
-            className={`bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl border ${
-              messageType === 'success' ? 'border-green-500' : 'border-red-500'
-            }`}
+            className={`bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl border ${messageType === 'success' ? 'border-green-500' : 'border-red-500'
+              }`}
           >
             <h3 className={`text-lg font-semibold mb-2 ${messageType === 'success' ? 'text-green-600' : 'text-red-600'}`}>
               {messageType === 'success' ? 'Succès' : 'Erreur'}
@@ -160,23 +170,23 @@ export default function EditFramework() {
                 <Field label="Publisher">
                   <Input value={data.publisher} onChange={e => setData('publisher', e.target.value)} />
                 </Field>
-               <Field label="Jurisdiction" required>
-  <Select
-    value={data.jurisdiction_id}
-    onValueChange={(v) => setData('jurisdiction_id', v)}
-  >
-    <SelectTrigger>
-      <SelectValue placeholder="Select jurisdiction" />
-    </SelectTrigger>
-    <SelectContent>
-      {jurisdictions.map((j) => (
-        <SelectItem key={j.id} value={j.id.toString()}>
-          {j.name}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-</Field>
+                <Field label="Jurisdiction" required>
+                  <Select
+                    value={data.jurisdiction_id}
+                    onValueChange={(v) => setData('jurisdiction_id', v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select jurisdiction" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {jurisdictions.map((j) => (
+                        <SelectItem key={j.id} value={j.id.toString()}>
+                          {j.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
                 <Field label="Scope">
                   <Input value={data.scope} onChange={e => setData('scope', e.target.value)} />
@@ -207,12 +217,13 @@ export default function EditFramework() {
 
               {/* Tags */}
               <Field label="Tags">
-                <Select value={data.tags} onValueChange={v => setData('tags', v)}>
-                  <SelectTrigger><SelectValue placeholder="Select a tag" /></SelectTrigger>
-                  <SelectContent>
-                    {tagsList.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <MultiSelect
+                  options={tags.map(tag => ({ value: tag.id.toString(), label: tag.name }))}
+                  defaultValue={selectedTagIds}
+
+                  onValueChange={(values: string[]) => setData('tags', values)}
+                  placeholder="Select tags"
+                />
               </Field>
 
               {/* Submit */}
