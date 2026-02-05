@@ -8,8 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { ArrowLeft, Pencil } from 'lucide-react'
- 
+import { Badge } from '@/components/ui/badge'
+import { ArrowLeft, Pencil, Calendar, Link2, Tag, FileText } from 'lucide-react'
+
 interface Framework {
   id: number
   code: string
@@ -18,8 +19,7 @@ interface Framework {
   type: string
   status: string
   publisher?: string | null
-  jurisdiction?: number | null // un seul ID
-  jurisdiction_name?: string | null // nom de la juridiction
+  jurisdiction_name?: string | null
   scope?: string | null
   release_date?: string | null
   effective_date?: string | null
@@ -27,164 +27,226 @@ interface Framework {
   description?: string | null
   language?: string | null
   url_reference?: string | null
-  tags?: string[] | string | null // tableau JSON côté backend
-  tags_names?: string[] | null // noms des tags
+  tags_names?: string[] | null
 }
- 
+
 export default function ShowFramework() {
   const { framework } = usePage<{ framework: Framework }>().props
- 
-  // Convertir JSON en tableau
-  const parseArray = (value: any) => {
-    if (!value) return []
-    if (Array.isArray(value)) return value
+
+  // Helpers
+  const formatDate = (date?: string | null) => {
+    if (!date) return '—'
     try {
-      return JSON.parse(value)
+      const d = new Date(date)
+      return d.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
     } catch {
-      return [value]
+      return date
     }
   }
- 
-  // Formater date en YYYY-MM-DD
-  const formatDate = (date?: string | null) => {
-    if (!date) return '-'
-    const d = new Date(date)
-    const year = d.getFullYear()
-    const month = (d.getMonth() + 1).toString().padStart(2, '0')
-    const day = d.getDate().toString().padStart(2, '0')
-    return `${year}-${month}-${day}`
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'active':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200'
+      case 'draft':
+        return 'bg-amber-100 text-amber-800 border-amber-200'
+      case 'archived':
+      case 'deprecated':
+        return 'bg-gray-100 text-gray-800 border-gray-200'
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200'
+    }
   }
- 
-  // Composant pour chaque champ
-  const Field = ({
-    label,
-    value,
-  }: {
-    label: string
-    value?: React.ReactNode
-  }) => (
-    <div className="space-y-1">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="font-medium">{value || '-'}</p>
-    </div>
-  )
- 
+
+  const parseTags = (tags: any) => {
+    if (!tags) return []
+    if (Array.isArray(tags)) return tags
+    try {
+      return JSON.parse(tags)
+    } catch {
+      return typeof tags === 'string' ? [tags] : []
+    }
+  }
+
   return (
     <AppLayout>
-      <Head title={`Framework - ${framework.name}`} />
- 
-      <div className="p-6 space-y-6">
-        {/* HEADER */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
+      <Head title={`Framework • ${framework.name}`} />
+
+      {/* On enlève max-w-7xl pour occuper toute la largeur */}
+      <div className="p-6 lg:p-10 space-y-10 min-h-screen bg-gradient-to-b from-background to-muted/30">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="flex items-center gap-5">
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={() => router.visit('/frameworks')}
+              className="h-11 w-11 rounded-full"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-2xl font-bold">{framework.name}</h1>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+                {framework.name}
+              </h1>
+              <div className="flex items-center gap-3 mt-2 text-muted-foreground">
+                <span className="font-mono text-sm bg-muted/70 px-2.5 py-1 rounded">
+                  {framework.code}
+                </span>
+                {framework.version && (
+                  <span className="text-sm font-medium">v{framework.version}</span>
+                )}
+              </div>
+            </div>
           </div>
- 
+
           <Button
-            onClick={() =>
-              router.visit(`/frameworks/${framework.id}/edit`)
-            }
+            onClick={() => router.visit(`/frameworks/${framework.id}/edit`)}
+            size="lg"
+            className="gap-2 px-6"
           >
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit
+            <Pencil className="h-4 w-4" />
+            Edit Framework
           </Button>
         </div>
- 
-        {/* GENERAL INFO */}
-        <Card>
-          <CardHeader>
-            <CardTitle>General Information</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Field label="Code" value={framework.code} />
-            <Field label="Name" value={framework.name} />
-            <Field label="Version" value={framework.version} />
-            <Field label="Type" value={framework.type} />
-            <Field label="Status" value={framework.status} />
-            <Field label="Publisher" value={framework.publisher} />
-            <Field
-              label="Jurisdiction"
-              value={framework.jurisdiction_name || '-'}
-            />
-            <Field label="Scope" value={framework.scope} />
-            <Field label="Language" value={framework.language} />
-          </CardContent>
-        </Card>
- 
-        {/* DATES */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Dates</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Field label="Release Date" value={formatDate(framework.release_date)} />
-            <Field label="Effective Date" value={formatDate(framework.effective_date)} />
-            <Field label="Retired Date" value={formatDate(framework.retired_date)} />
-          </CardContent>
-        </Card>
- 
-        {/* REFERENCES */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tags</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Tags affichés comme badges */}
-            <div className="flex flex-wrap gap-1">
-              {parseArray(framework.tags_names).map((tag, index) => (
-                <span
-                  key={index}
-                  className="inline-block bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded"
-                >
-                  {tag}
-                </span>
-              ))}
-              {(!framework.tags_names || framework.tags_names.length === 0) && (
-                <span className="text-gray-500">No tags</span>
-              )}
-            </div>
- 
-            {/* Reference URL */}
-            <Field
-              label="Reference URL"
-              value={
-                framework.url_reference ? (
-                  <a
-                    href={framework.url_reference}
-                    target="_blank"
-                    className="text-primary underline"
-                  >
-                    {framework.url_reference}
-                  </a>
-                ) : (
-                  '-'
-                )
-              }
-            />
-          </CardContent>
-        </Card>
- 
-        {/* DESCRIPTION */}
-        {framework.description && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Description</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>{framework.description}</p>
-            </CardContent>
-          </Card>
-        )}
+
+        {/* Status Badge */}
+        <div>
+          <Badge
+            variant="outline"
+            className={`text-base px-5 py-2 capitalize font-medium ${getStatusColor(
+              framework.status
+            )}`}
+          >
+            {framework.status}
+          </Badge>
+        </div>
+
+        {/* Contenu principal - full width */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Colonne principale (plus large) */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* General Information */}
+            <Card className="border shadow-md">
+              <CardHeader className="pb-5">
+                <div className="flex items-center gap-3">
+                  <FileText className="h-6 w-6 text-primary/70" />
+                  <CardTitle className="text-2xl">General Information</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-7">
+                <Field label="Code" value={framework.code} icon={<span className="font-mono text-base">ABC</span>} />
+                <Field
+                  label="Type"
+                  value={framework.type.charAt(0).toUpperCase() + framework.type.slice(1)}
+                />
+                <Field label="Publisher" value={framework.publisher || '—'} />
+                <Field label="Jurisdiction" value={framework.jurisdiction_name || '—'} />
+                <Field label="Scope" value={framework.scope || '—'} />
+                <Field label="Language" value={framework.language || '—'} />
+              </CardContent>
+            </Card>
+
+            {/* Description */}
+            {framework.description && (
+              <Card className="border shadow-md">
+                <CardHeader className="pb-5">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-6 w-6 text-primary/70" />
+                    <CardTitle className="text-2xl">Description</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-base leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                    {framework.description}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Colonne latérale */}
+          <div className="space-y-8">
+            {/* Dates */}
+            <Card className="border shadow-md">
+              <CardHeader className="pb-5">
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-6 w-6 text-primary/70" />
+                  <CardTitle className="text-2xl">Dates</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Field label="Release Date" value={formatDate(framework.release_date)} />
+                <Field label="Effective Date" value={formatDate(framework.effective_date)} />
+                <Field label="Retired Date" value={formatDate(framework.retired_date)} />
+              </CardContent>
+            </Card>
+
+            {/* Tags & Reference */}
+            <Card className="border shadow-md">
+              <CardHeader className="pb-5">
+                <div className="flex items-center gap-3">
+                  <Tag className="h-6 w-6 text-primary/70" />
+                  <CardTitle className="text-2xl">Tags & Reference</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-8">
+                {/* Tags */}
+                <div>
+                  <p className="text-sm text-muted-foreground mb-3 font-medium">Tags</p>
+                  <div className="flex flex-wrap gap-2.5">
+                    {parseTags(framework.tags_names).length > 0 ? (
+                      parseTags(framework.tags_names).map((tag: string, index: number) => (
+                        <Badge key={index} variant="secondary" className="text-base px-4 py-1.5">
+                          {tag}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground italic">No tags assigned</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* URL Reference */}
+                <div>
+                  <p className="text-sm text-muted-foreground mb-3 font-medium flex items-center gap-2">
+                    <Link2 className="h-4 w-4" />
+                    Reference URL
+                  </p>
+                  {framework.url_reference ? (
+                    <a
+                      href={framework.url_reference}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline text-base break-all block"
+                    >
+                      {framework.url_reference}
+                    </a>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">No reference available</span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </AppLayout>
   )
 }
- 
+
+function Field({ label, value, icon }: { label: string; value: React.ReactNode; icon?: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-muted-foreground flex items-center gap-2">
+        {icon}
+        {label}
+      </p>
+      <p className="font-medium text-lg text-gray-900 dark:text-gray-100">{value}</p>
+    </div>
+  )
+}

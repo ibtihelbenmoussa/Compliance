@@ -1,36 +1,16 @@
-import React, { useState } from 'react'
-import { Head, usePage, router } from '@inertiajs/react'
+import { useState } from 'react'
+import { Head, Link, router } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
-import { Button } from '@/components/ui/button'
+import { ServerDataTable } from '@/components/server-data-table'
+import { DataTableColumnHeader } from '@/components/server-data-table-column-header'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  DataTableFacetedFilter,
+  type FacetedFilterOption,
+} from '@/components/server-data-table-faceted-filter'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
-  Pencil,
-  Trash2,
-  MoreHorizontal,
-  Eye,
-  Search,
-  FileSpreadsheet,
-  Filter,
-  Building2,
-  CheckCircle2,
-  FileText,
-  AlertCircle,
-  Archive,
-  Plus,
-} from 'lucide-react'
+  DataTableSelectFilter,
+  type SelectOption,
+} from '@/components/server-data-table-select-filter'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,16 +21,46 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
- import { Badge } from '@/components/ui/badge'
-import { DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
-import { Link } from '@inertiajs/react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Key,          // 🆔 Code
+  BookOpen,     // 📘 Name
+  RefreshCw,    // 🔁 Version
+  Layers,       // 🗂️ Type
+  User,         // 👤 Publisher
+  Globe,        // 🌍 Jurisdiction
+  Tag,          // 🏷️ Tags
+  SignalHigh,   // 🚦 Status
+  Building2,
+  CheckCircle2,
+  Eye,
+  FileText,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  Archive,
+  ArrowDownUp,
+  ChevronDown,
+} from 'lucide-react'
+import type { ColumnDef } from '@tanstack/react-table'
+import { PaginatedData } from '@/types'
 
 interface Jurisdiction {
   id: number
   name: string
 }
- 
-interface Framework {
+
+export interface Framework {
   id: number
   code: string
   name: string
@@ -58,56 +68,265 @@ interface Framework {
   type: string
   publisher?: string | null
   jurisdiction: Jurisdiction | null
-  tags?: string[] 
+  tags?: string[]
   status: string
   updated_at?: string | null
 }
- 
-export default function FrameworksIndex() {
-  const { frameworks = [] } = usePage<{ frameworks: Framework[] }>().props
 
-  
- 
-  /* ===== STATS ===== */
-  const totalFrameworks = frameworks.length
-  const activeCount = frameworks.filter(f => f.status === 'active').length
-  const draftCount = frameworks.filter(f => f.status === 'draft').length
-  const archivedCount = frameworks.filter(f => f.status === 'archived').length
- 
-  /* ===== STATES ===== */
-  const [search, setSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState('all')
+interface FrameworksIndexProps {
+  frameworks: PaginatedData<Framework>
+}
+
+export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [frameworkToDelete, setFrameworkToDelete] = useState<Framework | null>(null)
- 
-  /* ===== HELPERS ===== */
-  const parseArray = (value: any) => {
-    if (!value) return []
-    if (Array.isArray(value)) return value
+  const [exportLoading, setExportLoading] = useState(false)
+
+  const handleExport = async () => {
+    setExportLoading(true)
     try {
-      return JSON.parse(value)
-    } catch {
-      return [value]
+      const params = new URLSearchParams(window.location.search)
+      const response = await fetch(`/frameworks/export?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `frameworks-${new Date().toISOString().split('T')[0]}.xlsx`
+        link.click()
+        window.URL.revokeObjectURL(url)
+      }
+    } catch (error) {
+      console.error('Export error:', error)
+    } finally {
+      setExportLoading(false)
     }
   }
- 
-  const filteredFrameworks = frameworks.filter((fw) => {
-    const matchesSearch =
-      fw.name.toLowerCase().includes(search.toLowerCase()) ||
-      fw.code.toLowerCase().includes(search.toLowerCase())
- 
-    const matchesType = typeFilter === 'all' || fw.type === typeFilter
- 
-    return matchesSearch && matchesType
-  })
- 
-  /* ===== DELETE ===== */
-  const handleDelete = (fw: Framework) => {
-    setFrameworkToDelete(fw)
-    setDeleteDialogOpen(true)
-  }
- 
-  const confirmDelete = () => {
+
+  const statusOptions: FacetedFilterOption[] = [
+    { label: 'Active', value: 'active', icon: CheckCircle2 },
+    { label: 'Draft', value: 'draft', icon: FileText },
+    { label: 'Archived', value: 'archived', icon: Archive },
+  ]
+
+  const typeOptions: SelectOption[] = [
+    { label: 'All', value: 'all' },
+    { label: 'Standard', value: 'standard' },
+    { label: 'Regulation', value: 'regulation' },
+    { label: 'Contract', value: 'contract' },
+    { label: 'Internal Policy', value: 'internal_policy' },
+  ]
+
+  const total = frameworks.total || frameworks.data.length
+  const activeCount = frameworks.data.filter(f => f.status === 'active').length
+  const draftCount = frameworks.data.filter(f => f.status === 'draft').length
+  const archivedCount = frameworks.data.filter(f => f.status === 'archived').length
+
+  const activePercent = total > 0 ? Math.round((activeCount / total) * 100) : 0
+  const draftPercent = total > 0 ? Math.round((draftCount / total) * 100) : 0
+  const archivedPercent = total > 0 ? Math.round((archivedCount / total) * 100) : 0
+
+  const columns: ColumnDef<Framework>[] = [
+    {
+      accessorKey: 'code',
+      header: ({ column }) => (
+        <div className="flex items-center gap-1.5">
+          <Key className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Code" />
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="font-mono">{row.getValue('code')}</div>
+      ),
+    },
+    {
+      accessorKey: 'name',
+      header: ({ column }) => (
+        <div className="flex items-center gap-1.5">
+          <BookOpen className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Name" />
+        </div>
+      ),
+      cell: ({ row }) => (
+        <Link
+          href={`/frameworks/${row.original.id}`}
+          className="font-medium hover:underline"
+        >
+          {row.getValue('name')}
+        </Link>
+      ),
+    },
+    {
+      accessorKey: 'version',
+      header: ({ column }) => (
+        <div className="flex items-center gap-1.5">
+          <RefreshCw className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Version" />
+        </div>
+      ),
+      cell: ({ row }) => row.getValue('version') ?? '—',
+    },
+    {
+      accessorKey: 'type',
+      header: ({ column }) => (
+        <div className="flex items-center gap-1.5">
+          <Layers className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Type" />
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="capitalize">{row.getValue('type') || '—'}</div>
+      ),
+    },
+    {
+      accessorKey: 'publisher',
+      header: ({ column }) => (
+        <div className="flex items-center gap-1.5">
+          <User className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Publisher" />
+        </div>
+      ),
+      cell: ({ row }) => row.getValue('publisher') ?? '—',
+    },
+    {
+      accessorKey: 'jurisdiction.name',
+      header: ({ column }) => (
+        <div className="flex items-center gap-1.5">
+          <Globe className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Jurisdiction" />
+        </div>
+      ),
+      cell: ({ row }) =>
+        row.original.jurisdiction?.name ?? '—',
+    },
+    {
+      accessorKey: 'status',
+      header: ({ column }) => (
+        <div className="flex items-center gap-1.5">
+          <SignalHigh className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Status" />
+        </div>
+      ),
+      cell: ({ row }) => {
+        const status = row.getValue('status') as string
+        const statusLower = status?.toLowerCase() || ''
+
+        let pillClasses = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium border shadow-sm'
+        let icon = null
+
+        switch (statusLower) {
+          case 'active':
+            pillClasses += ' bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
+            icon = <CheckCircle2 className="h-3.5 w-3.5" />
+            break
+
+          case 'draft':
+            pillClasses += ' bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
+            icon = <FileText className="h-3.5 w-3.5" />
+            break
+
+          case 'archived':
+            pillClasses += ' bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800/50 dark:text-gray-300 dark:border-gray-700/60'
+            icon = <Archive className="h-3.5 w-3.5" />
+            break
+
+          default:
+            pillClasses += ' bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800/50 dark:text-gray-300 dark:border-gray-700/60'
+            icon = <FileText className="h-3.5 w-3.5" />
+        }
+
+        return (
+          <span className={pillClasses}>
+            {icon}
+            {status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown'}
+          </span>
+        )
+      },
+    },
+    {
+      accessorKey: 'tags',
+      header: ({ column }) => (
+        <div className="flex items-center gap-1.5">
+          <Tag className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Tags" />
+          <ArrowDownUp className="h-4 w-4 text-muted-foreground opacity-70" />
+        </div>
+      ),
+      cell: ({ row }) => {
+        const tags: string[] = row.original.tags || []
+
+        return (
+          <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap gap-1 max-w-[180px]">
+              {tags.length > 0 ? (
+                tags.slice(0, 3).map((tag, i) => (
+                  <Badge key={i} variant="secondary" className="px-2 py-0.5 text-xs">
+                    {tag}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-muted-foreground text-xs">—</span>
+              )}
+            </div>
+
+            {tags.length > 3 && (
+              <Badge variant="outline" className="text-xs px-1.5 py-0.5">
+                +{tags.length - 3}
+              </Badge>
+            )}
+            {/* Les chevrons ont été supprimés ici */}
+          </div>
+        )
+      },
+      enableSorting: false,
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => {
+        const framework = row.original
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => router.visit(`/frameworks/${framework.id}`)}>
+                <Eye className="mr-2 h-4 w-4" />
+                View
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.visit(`/frameworks/${framework.id}/edit`)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setFrameworkToDelete(framework)
+                  setDeleteDialogOpen(true)
+                }}
+                className="text-destructive focus:bg-destructive/10"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )
+      },
+    },
+  ]
+
+  const handleDeleteConfirm = () => {
     if (frameworkToDelete) {
       router.delete(`/frameworks/${frameworkToDelete.id}`, {
         onSuccess: () => {
@@ -118,314 +337,161 @@ export default function FrameworksIndex() {
     }
   }
 
-  /* ===== COLUMNS SERVER DATATABLE ===== */
-  const columns = [
-    { header: 'Code', accessorKey: 'code' },
-    {
-      header: 'Name',
-      accessorKey: 'name',
-      render: (fw: Framework) => (
-        <Link href={`/frameworks/${fw.id}`} className="font-medium hover:underline">
-          {fw.name}
-        </Link>
-      ),
-    },
-    { header: 'Version', accessorKey: 'version', render: (fw: Framework) => fw.version ?? '-' },
-    { header: 'Type', accessorKey: 'type' },
-    { header: 'Publisher', accessorKey: 'publisher', render: (fw: Framework) => fw.publisher ?? '-' },
-    {
-      header: 'Jurisdiction',
-      accessorKey: 'jurisdiction',
-      render: (fw: Framework) => fw.jurisdiction?.name ?? '-',
-    },
-    {
-      header: 'Status',
-      accessorKey: 'status',
-      render: (fw: Framework) => (
-        <Badge
-          variant={fw.status === 'active' ? 'default' : fw.status === 'draft' ? 'destructive' : 'secondary'}
-          className="capitalize"
-        >
-          {fw.status}
-        </Badge>
-      ),
-    },
-    {
-      header: 'Tags',
-      accessorKey: 'tags',
-      render: (fw: Framework) => (
-        <div className="flex flex-wrap gap-1">
-          {fw.tags?.length
-            ? fw.tags.map((tag, i) => (
-                <Badge key={i} variant="secondary" className="px-2 py-0.5 text-xs">
-                  {tag}
-                </Badge>
-              ))
-            : <span className="text-gray-400">-</span>}
-        </div>
-      ),
-    },
-    {
-      header: 'Actions',
-      accessorKey: 'actions',
-      render: (fw: Framework) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => router.visit(`/frameworks/${fw.id}`)}>
-              <Eye className="mr-2 h-4 w-4" /> View
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.visit(`/frameworks/${fw.id}/edit`)}>
-              <Pencil className="mr-2 h-4 w-4" /> Edit
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => handleDelete(fw)} className="text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" /> Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-    },
-  ]
- 
   return (
     <AppLayout>
       <Head title="Frameworks" />
- 
-      <div className="p-6 space-y-6">
- 
-        {/* ===== HEADER ===== */}
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Frameworks</h1>
+
+      <div className="space-y-6 p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Frameworks</h1>
+            <p className="text-muted-foreground">
+              Manage compliance frameworks
+            </p>
+          </div>
           <Button onClick={() => router.visit('/frameworks/create')}>
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             Add Framework
           </Button>
         </div>
- 
-        {/* ===== STATISTICS ===== */}
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-  <StatCard
-    title="Total"
-    value={totalFrameworks}
-    icon={Building2}
-    color="text-blue-600"
-    bgColor="bg-blue-50 dark:bg-blue-900"
-  />
-  <StatCard
-    title="Active"
-    value={activeCount}
-    icon={CheckCircle2}
-    color="text-green-600"
-    bgColor="bg-green-50 dark:bg-green-900"
-  />
-  <StatCard
-    title="Draft"
-    value={draftCount}
-    icon={FileText}
-    color="text-yellow-500"
-    bgColor="bg-yellow-50 dark:bg-yellow-900"
-  />
-  
-  <StatCard
-    title="Archived"
-    value={archivedCount}
-    icon={Archive}
-    color="text-gray-500"
-    bgColor="bg-gray-50 dark:bg-gray-800"
-  />
-</div>
 
- 
-        {/* ===== TOOLBAR ===== */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-between">
-          <div className="relative w-full sm:max-w-md">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search by name or code..."
-              className="w-full rounded-lg border pl-10 pr-4 py-2"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+        {/* Statistics Cards */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total</p>
+                <p className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  {frameworks.total}
+                </p>
+              </div>
+              <div className="rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20 p-3 transition-transform group-hover:scale-110">
+                <Building2 className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+            <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ease-out"
+                style={{ width: '100%' }}
+              />
+            </div>
           </div>
- 
-          <div className="flex gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filters
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {['all', 'standard', 'regulation', 'contract', 'internal_policy'].map(t => (
-                  <DropdownMenuItem key={t} onClick={() => setTypeFilter(t)}>
-                    {t === 'all' ? 'All types' : t}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
- 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => (window.location.href = '/frameworks/export')}
-            >
-              <FileSpreadsheet className="h-4 w-4 mr-2 text-green-600" />
-              Export Excel
-            </Button>
+
+          <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Active</p>
+                <p className="text-4xl font-extrabold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
+                  {activeCount}
+                </p>
+              </div>
+              <div className="rounded-full bg-emerald-500/10 p-3 transition-transform group-hover:scale-110">
+                <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+            <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 to-green-500 transition-all duration-1000 ease-out"
+                style={{ width: `${activePercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5 text-right">{activePercent}%</p>
+          </div>
+
+          <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Draft</p>
+                <p className="text-4xl font-extrabold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+                  {draftCount}
+                </p>
+              </div>
+              <div className="rounded-full bg-amber-500/10 p-3 transition-transform group-hover:scale-110">
+                <FileText className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+            <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-1000 ease-out"
+                style={{ width: `${draftPercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5 text-right">{draftPercent}%</p>
+          </div>
+
+          <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Archived</p>
+                <p className="text-4xl font-extrabold bg-gradient-to-r from-gray-600 to-slate-600 bg-clip-text text-transparent">
+                  {archivedCount}
+                </p>
+              </div>
+              <div className="rounded-full bg-gray-500/10 p-3 transition-transform group-hover:scale-110">
+                <Archive className="h-8 w-8 text-gray-600 dark:text-gray-400" />
+              </div>
+            </div>
+            <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-gray-500 to-slate-500 transition-all duration-1000 ease-out"
+                style={{ width: `${archivedPercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5 text-right">{archivedPercent}%</p>
           </div>
         </div>
- 
-        {/* ===== TABLE ===== */}
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Code</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Version</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Publisher</TableHead>
-              <TableHead>Jurisdiction</TableHead>
-              <TableHead>Status</TableHead>
-                            <TableHead>Tags</TableHead>
 
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
- 
-          <TableBody>
-  {filteredFrameworks.length ? (
-    filteredFrameworks.map((fw) => (
-      <TableRow
-        key={fw.id}
-        className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-200 cursor-pointer"
-      >
-        <TableCell className="font-mono text-gray-900 dark:text-gray-100">{fw.code}</TableCell>
-        <TableCell>
-          <Link href={`/frameworks/${fw.id}`} className="font-medium hover:underline text-gray-700 dark:text-gray-300">
-            {fw.name}
-          </Link>
-        </TableCell>
-        <TableCell className="text-gray-700 dark:text-gray-300">{fw.version ?? '-'}</TableCell>
-        <TableCell className="capitalize text-gray-700 dark:text-gray-300">{fw.type}</TableCell>
-        <TableCell className="text-gray-700 dark:text-gray-300">{fw.publisher ?? '-'}</TableCell>
-        <TableCell className="text-gray-700 dark:text-gray-300">{fw.jurisdiction?.name ?? '-'}</TableCell>
-
-        {/* ===== STATUS BADGE ===== */}
-        <TableCell>
-     <Badge
-  variant={
-    fw.status === 'active'
-      ? 'default'
-      : fw.status === 'draft'
-      ? 'destructive'
-      : 'secondary'
-  }
-  className="capitalize"
->
-  {fw.status}
-</Badge>
-
-        </TableCell>
-
-        {/* ===== TAGS ===== */}
-        <TableCell className="flex flex-wrap gap-1">
-          {fw.tags?.length ? (
-            fw.tags.map((tag, i) => (
-              <Badge key={i} variant="secondary" className="px-2 py-0.5 text-xs">
-                {tag}
-              </Badge>
-            ))
-          ) : (
-            <span className="text-gray-400">-</span>
-          )}
-        </TableCell>
-
-        {/* ===== ACTIONS DROPDOWN ===== */}
-        <TableCell className="text-right">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="end" className="shadow-lg rounded-lg border border-gray-200 dark:border-gray-700">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => router.visit(`/frameworks/${fw.id}`)}>
-                <Eye className="mr-2 h-4 w-4" />
-                View
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.visit(`/frameworks/${fw.id}/edit`)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  setFrameworkToDelete(fw)
-                  setDeleteDialogOpen(true)
-                }}
-                className="text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </TableCell>
-      </TableRow>
-    ))
-  ) : (
-    <TableRow>
-      <TableCell colSpan={9} className="text-center text-gray-500 dark:text-gray-400 py-4">
-        Aucun framework trouvé
-      </TableCell>
-    </TableRow>
-  )}
-</TableBody>
-
-        </Table>
+        {/* Data Table */}
+        <ServerDataTable
+          columns={columns}
+          data={frameworks}
+          searchPlaceholder="Search by name or code..."
+          onExport={handleExport}
+          exportLoading={exportLoading}
+          filters={
+            <>
+              <DataTableFacetedFilter
+                filterKey="status"
+                title="Status"
+                options={statusOptions}
+              />
+              <DataTableSelectFilter
+                filterKey="type"
+                title="Type"
+                placeholder="All types"
+                options={typeOptions}
+              />
+            </>
+          }
+          initialState={{
+            columnPinning: {
+              right: ['actions'],
+            },
+          }}
+        />
       </div>
- 
-      {/* ===== DELETE MODAL ===== */}
+
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Framework</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{frameworkToDelete?.name}" ?
+              Are you sure you want to delete "{frameworkToDelete?.name}"? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive" onClick={confirmDelete}>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </AppLayout>
-  )
-}
- 
-/* ===== STAT CARD COMPONENT ===== */
-function StatCard({ title, value, icon: Icon, color = 'text-muted-foreground' }: any) {
-  return (
-    <div className="rounded-xl border bg-background p-5 flex items-center justify-between">
-      <div>
-        <p className="text-sm text-muted-foreground">{title}</p>
-        <p className={`text-3xl font-bold mt-2 ${color}`}>{value}</p>
-      </div>
-      <Icon className={`h-7 w-7 ${color}`} />
-    </div>
   )
 }

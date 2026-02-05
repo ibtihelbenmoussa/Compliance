@@ -93,9 +93,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('frameworks/{framework}/edit', [FrameworkController::class, 'edit'])->name('frameworks.edit');
         Route::put('frameworks/{framework}', [FrameworkController::class, 'update'])->name('frameworks.update');
         Route::delete('frameworks/{framework}', [FrameworkController::class, 'destroy'])->name('frameworks.destroy');
-        Route::get('/frameworks/export', function () {
-            return Excel::download(new FrameworksExport, 'frameworks.xlsx');
-        })->name('frameworks.export');
+       Route::get('/frameworks/export', [FrameworkController::class, 'export'])
+    ->name('frameworks.export');
         Route::get('/frameworks/{framework}', [FrameworkController::class, 'show']);
 
 

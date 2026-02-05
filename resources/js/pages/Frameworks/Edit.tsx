@@ -9,14 +9,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar'
 import { format } from 'date-fns'
 import { Card, CardContent } from '@/components/ui/card'
-import { ChevronLeft, ChevronDownIcon } from 'lucide-react'
-import { MultiSelect } from '@/components/ui/multi-select';
+import { ChevronLeft, Calendar as CalendarIcon } from 'lucide-react'
+import { MultiSelect } from '@/components/ui/multi-select'
 
 type Tag = {
   id: number
   name: string
 }
-
 
 export default function EditFramework() {
   const { framework, jurisdictions, tags, selectedTagIds } = usePage<{
@@ -40,7 +39,6 @@ export default function EditFramework() {
     status: framework.status || 'active',
     publisher: framework.publisher || '',
     jurisdiction_id: framework.jurisdiction_id?.toString() || '',
-
     scope: framework.scope || '',
     release_date: formatDateString(framework.release_date),
     effective_date: formatDateString(framework.effective_date),
@@ -49,21 +47,17 @@ export default function EditFramework() {
     language: framework.language || '',
     url_reference: framework.url_reference || '',
     tags: selectedTagIds,
-
-
   })
 
-  const [releaseDate, setReleaseDate] = useState<Date | undefined>(data.release_date ? new Date(data.release_date) : undefined)
-  const [effectiveDate, setEffectiveDate] = useState<Date | undefined>(data.effective_date ? new Date(data.effective_date) : undefined)
-  const [retiredDate, setRetiredDate] = useState<Date | undefined>(data.retired_date ? new Date(data.retired_date) : undefined)
-
-  const [jurisdictionsList] = useState(jurisdictions)
-
-  const tagsList = [
-    'Sécurité de l’information', 'Cybersécurité', 'Conformité', 'Audit', 'Gestion des risques',
-    'RGPD', 'Privacy', 'ISO 27001', 'NIST', 'PCI-DSS', 'Gouvernance', 'Contrôle interne',
-    'Plan d’action', 'Reporting'
-  ]
+  const [releaseDate, setReleaseDate] = useState<Date | undefined>(
+    data.release_date ? new Date(data.release_date) : undefined
+  )
+  const [effectiveDate, setEffectiveDate] = useState<Date | undefined>(
+    data.effective_date ? new Date(data.effective_date) : undefined
+  )
+  const [retiredDate, setRetiredDate] = useState<Date | undefined>(
+    data.retired_date ? new Date(data.retired_date) : undefined
+  )
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,180 +84,335 @@ export default function EditFramework() {
     >
       <Head title="Edit Framework" />
 
-      {/* Message Modal */}
+      {/* Message Modal - même style que Create */}
       {isMessageOpen && message && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div
-            className={`bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl border ${messageType === 'success' ? 'border-green-500' : 'border-red-500'
-              }`}
+            className={`bg-gray-900 border rounded-2xl p-6 w-full max-w-md shadow-2xl ${
+              messageType === 'success' ? 'border-green-600' : 'border-red-600'
+            }`}
           >
-            <h3 className={`text-lg font-semibold mb-2 ${messageType === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-              {messageType === 'success' ? 'Succès' : 'Erreur'}
+            <h3
+              className={`text-xl font-semibold mb-3 ${
+                messageType === 'success' ? 'text-green-400' : 'text-red-400'
+              }`}
+            >
+              {messageType === 'success' ? 'Success' : 'Error'}
             </h3>
-            <p className="text-gray-700 dark:text-gray-200">{message}</p>
-            <div className="flex justify-end mt-4">
-              <Button variant="outline" onClick={() => setIsMessageOpen(false)}>Fermer</Button>
+            <p className="text-gray-300 mb-6">{message}</p>
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => setIsMessageOpen(false)}>
+                Close
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="space-y-6 p-4">
-        <div className="flex items-center justify-between">
+      <div className="space-y-12 p-6 lg:p-10">
+        {/* Header - identique à Create */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 pb-6 border-b">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Edit Framework</h1>
-            <p className="text-muted-foreground">Modify your framework</p>
+            <p className="text-muted-foreground mt-2 text-lg">
+              Modify an existing compliance, security or governance framework
+            </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/frameworks">
-                <ChevronLeft className="mr-2 h-4 w-4" /> Back
-              </Link>
-            </Button>
-          </div>
+
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/frameworks">
+              <ChevronLeft className="mr-2 h-4 w-4" />
+              Back
+            </Link>
+          </Button>
         </div>
 
-        <Card className="w-full">
-          <CardContent className="pt-6">
-            <form onSubmit={submit} className="space-y-6">
-              {/* Code & Name */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="Code" required>
-                  <Input value={data.code} onChange={e => setData('code', e.target.value)} />
-                </Field>
-                <Field label="Name" required>
-                  <Input value={data.name} onChange={e => setData('name', e.target.value)} />
-                </Field>
+        {/* Card du formulaire - même style que Create */}
+        <Card className="border-none shadow-2xl bg-gradient-to-b from-card to-card/90 backdrop-blur-sm">
+          <CardContent className="pt-10 pb-14 px-6 md:px-12 lg:px-16">
+            <form onSubmit={submit} className="space-y-16">
+              {/* Basic Information */}
+              <div className="space-y-10">
+                <h2 className="text-2xl font-semibold tracking-tight border-b pb-4">
+                  Basic Information
+                </h2>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-1.5">
+                      Code <span className="text-red-500 text-base">*</span>
+                    </label>
+                    <Input
+                      placeholder="e.g. ISO27001, GDPR, PCI-DSS"
+                      value={data.code}
+                      onChange={e => setData('code', e.target.value)}
+                      className="h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-1.5">
+                      Name <span className="text-red-500 text-base">*</span>
+                    </label>
+                    <Input
+                      placeholder="ISO/IEC 27001:2022 Information security management systems — Requirements"
+                      value={data.name}
+                      onChange={e => setData('name', e.target.value)}
+                      className="h-11"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Version</label>
+                    <Input
+                      placeholder="e.g. v4.0, 2022, rev.2"
+                      value={data.version}
+                      onChange={e => setData('version', e.target.value)}
+                      className="h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-1.5">
+                      Type <span className="text-red-500 text-base">*</span>
+                    </label>
+                    <Select value={data.type} onValueChange={v => setData('type', v)}>
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select a type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard">Standard</SelectItem>
+                        <SelectItem value="regulation">Regulation</SelectItem>
+                        <SelectItem value="contract">Contract</SelectItem>
+                        <SelectItem value="internal_policy">Internal Policy</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-1.5">
+                      Status <span className="text-red-500 text-base">*</span>
+                    </label>
+                    <Select value={data.status} onValueChange={v => setData('status', v)}>
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select a status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="deprecated">Deprecated</SelectItem>
+                        <SelectItem value="archived">Archived</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
 
-              {/* Version • Type • Status */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Field label="Version">
-                  <Input value={data.version} onChange={e => setData('version', e.target.value)} />
-                </Field>
-                <Field label="Type" required>
-                  <Select value={data.type} onValueChange={v => setData('type', v)}>
-                    <SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="standard">Standard</SelectItem>
-                      <SelectItem value="regulation">Regulation</SelectItem>
-                      <SelectItem value="contract">Contract</SelectItem>
-                      <SelectItem value="internal_policy">Internal Policy</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Status" required>
-                  <Select value={data.status} onValueChange={v => setData('status', v)}>
-                    <SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="deprecated">Deprecated</SelectItem>
-                      <SelectItem value="archived">Archived</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
+              {/* Context */}
+              <div className="space-y-10">
+                <h2 className="text-2xl font-semibold tracking-tight border-b pb-4">
+                  Context
+                </h2>
 
-              {/* Publisher • Jurisdiction • Scope */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Field label="Publisher">
-                  <Input value={data.publisher} onChange={e => setData('publisher', e.target.value)} />
-                </Field>
-                <Field label="Jurisdiction" required>
-                  <Select
-                    value={data.jurisdiction_id}
-                    onValueChange={(v) => setData('jurisdiction_id', v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select jurisdiction" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {jurisdictions.map((j) => (
-                        <SelectItem key={j.id} value={j.id.toString()}>
-                          {j.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Publisher</label>
+                    <Input
+                      placeholder="e.g. ISO, NIST, European Commission..."
+                      value={data.publisher}
+                      onChange={e => setData('publisher', e.target.value)}
+                      className="h-11"
+                    />
+                  </div>
 
-                <Field label="Scope">
-                  <Input value={data.scope} onChange={e => setData('scope', e.target.value)} />
-                </Field>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-1.5">
+                      Jurisdiction <span className="text-red-500 text-base">*</span>
+                    </label>
+                    <Select
+                      value={data.jurisdiction_id}
+                      onValueChange={v => setData('jurisdiction_id', v)}
+                    >
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select jurisdiction" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {jurisdictions.map((j) => (
+                          <SelectItem key={j.id} value={j.id.toString()}>
+                            {j.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Scope</label>
+                    <Input
+                      placeholder="e.g. All organizations, Financial sector only..."
+                      value={data.scope}
+                      onChange={e => setData('scope', e.target.value)}
+                      className="h-11"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Dates */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <DateField label="Release Date" selectedDate={releaseDate} onSelect={d => { setReleaseDate(d); setData('release_date', d ? formatDateString(d.toISOString()) : '') }} />
-                <DateField label="Effective Date" selectedDate={effectiveDate} onSelect={d => { setEffectiveDate(d); setData('effective_date', d ? formatDateString(d.toISOString()) : '') }} />
-                <DateField label="Retired Date" selectedDate={retiredDate} onSelect={d => { setRetiredDate(d); setData('retired_date', d ? formatDateString(d.toISOString()) : '') }} />
+              <div className="space-y-10">
+                <h2 className="text-2xl font-semibold tracking-tight border-b pb-4">
+                  Important Dates
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Release Date</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full h-11 justify-start text-left font-normal"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {releaseDate ? format(releaseDate, 'PPP') : 'Pick a date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={releaseDate}
+                          onSelect={d => {
+                            setReleaseDate(d)
+                            setData('release_date', d ? formatDateString(d.toISOString()) : '')
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Effective Date</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full h-11 justify-start text-left font-normal"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {effectiveDate ? format(effectiveDate, 'PPP') : 'Pick a date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={effectiveDate}
+                          onSelect={d => {
+                            setEffectiveDate(d)
+                            setData('effective_date', d ? formatDateString(d.toISOString()) : '')
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Retired Date</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full h-11 justify-start text-left font-normal"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {retiredDate ? format(retiredDate, 'PPP') : 'Optional'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={retiredDate}
+                          onSelect={d => {
+                            setRetiredDate(d)
+                            setData('retired_date', d ? formatDateString(d.toISOString()) : '')
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
               </div>
 
-              {/* Description */}
-              <Field label="Description">
-                <Textarea rows={3} value={data.description} onChange={e => setData('description', e.target.value)} />
-              </Field>
+              {/* Additional Details */}
+              <div className="space-y-10">
+                <h2 className="text-2xl font-semibold tracking-tight border-b pb-4">
+                  Additional Details
+                </h2>
 
-              {/* Language & URL */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="Language">
-                  <Input value={data.language} onChange={e => setData('language', e.target.value)} />
-                </Field>
-                <Field label="Url Reference">
-                  <Input type="url" value={data.url_reference} onChange={e => setData('url_reference', e.target.value)} />
-                </Field>
+                <div className="space-y-4">
+                  <label className="text-sm font-medium">Description</label>
+                  <Textarea
+                    placeholder="Description ou notes d'implémentation..."
+                    value={data.description}
+                    onChange={e => setData('description', e.target.value)}
+                    className="min-h-[160px] resize-y"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <label className="text-sm font-medium">Language</label>
+                    <Input
+                      placeholder="Document language"
+                      value={data.language}
+                      onChange={e => setData('language', e.target.value)}
+                      className="h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-sm font-medium">Url Reference</label>
+                    <Input
+                      type="url"
+                      placeholder="https://www.iso.org/standard/82875.html"
+                      value={data.url_reference}
+                      onChange={e => setData('url_reference', e.target.value)}
+                      className="h-11"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="text-sm font-medium">Tags</label>
+                  <MultiSelect
+                    options={tags.map(tag => ({ value: tag.id.toString(), label: tag.name }))}
+                    defaultValue={selectedTagIds}
+                    onValueChange={(values: string[]) => setData('tags', values)}
+                    placeholder="Select tags"
+                  />
+                </div>
               </div>
 
-              {/* Tags */}
-              <Field label="Tags">
-                <MultiSelect
-                  options={tags.map(tag => ({ value: tag.id.toString(), label: tag.name }))}
-                  defaultValue={selectedTagIds}
+              {/* Actions - même style que Create */}
+              <div className="flex justify-end gap-4 pt-12 border-t">
+                <Button type="button" variant="outline" size="lg" asChild>
+                  <Link href="/frameworks">Cancel</Link>
+                </Button>
 
-                  onValueChange={(values: string[]) => setData('tags', values)}
-                  placeholder="Select tags"
-                />
-              </Field>
-
-              {/* Submit */}
-              <div className="flex justify-end gap-2 pt-6 border-t">
-                <Button asChild variant="outline"><Link href="/frameworks">Annuler</Link></Button>
-                <Button type="submit" disabled={processing}>Mettre à jour</Button>
+                <Button
+                  type="submit"
+                  disabled={processing}
+                  size="lg"
+                  className="min-w-[200px] font-medium"
+                >
+                  {processing ? 'Updating...' : 'Update Framework'}
+                </Button>
               </div>
             </form>
           </CardContent>
         </Card>
       </div>
     </AppLayout>
-  )
-}
-
-// Composant réutilisable pour les champs
-function Field({ label, required, children }: { label: string, required?: boolean, children: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <label className="text-sm font-medium flex items-center gap-1">{label}{required && <span className="text-red-500">*</span>}</label>
-      {children}
-    </div>
-  )
-}
-
-// Composant pour gérer les champs de dates avec calendrier
-function DateField({ label, selectedDate, onSelect }: { label: string; selectedDate?: Date; onSelect: (d: Date | undefined) => void }) {
-  return (
-    <Field label={label}>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className="w-full justify-between text-left">
-            {selectedDate ? format(selectedDate, 'PPP') : 'Select a date'}
-            <ChevronDownIcon className="ml-2 h-4 w-4" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0">
-          <Calendar mode="single" selected={selectedDate} onSelect={onSelect} />
-        </PopoverContent>
-      </Popover>
-    </Field>
   )
 }
