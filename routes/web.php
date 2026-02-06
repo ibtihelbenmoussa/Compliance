@@ -7,6 +7,8 @@ use App\Http\Controllers\JurisdictionController;
 use App\Exports\FrameworksExport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\RequirementController;
+
 
 
 Route::get('/', function () {
@@ -109,7 +111,9 @@ Route::resource('tags', TagController::class)
     ->only(['index', 'create', 'store', 'update', 'destroy']);
 
 
-
+// tags
+Route::resource('requirements', RequirementController::class)
+    ->only(['index', 'create', 'store', 'update', 'destroy']);
 
 
 

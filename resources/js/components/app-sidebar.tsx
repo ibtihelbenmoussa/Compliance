@@ -122,8 +122,13 @@ const data = {
             title: 'Frameworks',
             url: '/frameworks',
         },
-    ],
+         {
+  title: 'Requirements',
+  url: '/requirements',
 },
+
+    ],
+},  
 
         // {
         //     title: 'Administration',

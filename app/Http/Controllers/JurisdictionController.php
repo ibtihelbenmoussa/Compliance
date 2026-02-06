@@ -81,4 +81,3 @@ class JurisdictionController extends Controller
 
 
 }
-
