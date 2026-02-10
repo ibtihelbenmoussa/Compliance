@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import AppLayout from '@/layouts/app-layout'
 import { Head, Link, router } from '@inertiajs/react'
+import AppLayout from '@/layouts/app-layout'
 import { ServerDataTable } from '@/components/server-data-table'
 import { DataTableColumnHeader } from '@/components/server-data-table-column-header'
 import {
@@ -35,12 +35,21 @@ import {
   Eye,
   Pencil,
   Trash2,
-  ArrowDownUp,
   MoreHorizontal,
+  Plus,
   CheckCircle2,
   FileText,
   Archive,
-  Plus,
+  AlertTriangle,
+  AlertCircle,
+  Key,
+  BookOpen,
+  Layers,
+  SignalHigh,
+  Building2,
+  ListTodo,
+  Tag,
+  RefreshCw,          
 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PaginatedData } from '@/types'
@@ -54,11 +63,8 @@ interface Requirement {
   status: string
   priority: string
   frequency: string
-  framework_id: number
-  framework?: { code: string; name: string }
-  process_id?: number | null
-  process?: { name: string }
-  owner_id?: string | null
+  framework?: { code: string; name: string } | null
+  process?: { name: string } | null
   tags?: string[]
   deadline?: string | null
   completion_date?: string | null
@@ -70,12 +76,31 @@ interface Requirement {
 
 interface RequirementsIndexProps {
   requirements: PaginatedData<Requirement>
+  stats?: {
+    total?: number
+    lowCount?: number
+    mediumCount?: number
+    highCount?: number
+    lowPercent?: number
+    mediumPercent?: number
+    highPercent?: number
+  }
 }
 
-export default function RequirementsIndex({ requirements }: RequirementsIndexProps) {
+export default function RequirementsIndex({ requirements, stats = {} }: RequirementsIndexProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [requirementToDelete, setRequirementToDelete] = useState<Requirement | null>(null)
   const [exportLoading, setExportLoading] = useState(false)
+
+  const {
+    total = 0,
+    lowCount = 0,
+    mediumCount = 0,
+    highCount = 0,
+    lowPercent = 0,
+    mediumPercent = 0,
+    highPercent = 0,
+  } = stats
 
   const handleExport = async () => {
     setExportLoading(true)
@@ -88,15 +113,15 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
         },
       })
 
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `requirements-${new Date().toISOString().split('T')[0]}.xlsx`
-        link.click()
-        window.URL.revokeObjectURL(url)
-      }
+      if (!response.ok) throw new Error('Export failed')
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `requirements-${new Date().toISOString().split('T')[0]}.xlsx`
+      link.click()
+      window.URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Export error:', error)
     } finally {
@@ -122,22 +147,23 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
     {
       accessorKey: 'code',
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Code" />
+        <div className="flex items-center gap-1.5">
+          <Key className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Code" />
+        </div>
       ),
-      cell: ({ row }) => (
-        <div className="font-mono">{row.getValue('code')}</div>
-      ),
+      cell: ({ row }) => <div className="font-mono font-medium">{row.getValue('code')}</div>,
     },
     {
       accessorKey: 'title',
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Title" />
+        <div className="flex items-center gap-1.5">
+          <BookOpen className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Title" />
+        </div>
       ),
       cell: ({ row }) => (
-        <Link
-          href={`/requirements/${row.original.id}`}
-          className="font-medium hover:underline"
-        >
+        <Link href={`/requirements/${row.original.id}`} className="font-medium hover:underline">
           {row.getValue('title')}
         </Link>
       ),
@@ -145,7 +171,10 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
     {
       accessorKey: 'type',
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Type" />
+        <div className="flex items-center gap-1.5">
+          <Layers className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Type" />
+        </div>
       ),
       cell: ({ row }) => (
         <Badge variant="outline" className="capitalize">
@@ -156,139 +185,158 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
     {
       accessorKey: 'status',
       header: ({ column }) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <SignalHigh className="h-4 w-4 text-muted-foreground" />
           <DataTableColumnHeader column={column} title="Status" />
-          <ArrowDownUp className="h-4 w-4 text-muted-foreground opacity-70" />
         </div>
       ),
       cell: ({ row }) => {
-        const status = row.getValue('status') as string
-        const statusLower = status?.toLowerCase() || ''
-
-        let badgeClasses = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border'
-
-        switch (statusLower) {
-          case 'active':
-            badgeClasses += ' bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
-            break
-          case 'inactive':
-            badgeClasses += ' bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800/50 dark:text-gray-300 dark:border-gray-700/60'
-            break
-          case 'draft':
-            badgeClasses += ' bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
-            break
-          case 'archived':
-            badgeClasses += ' bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-300 dark:border-slate-800/60'
-            break
-          default:
-            badgeClasses += ' bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800/50 dark:text-gray-300 dark:border-gray-700/60'
+        const status = (row.getValue('status') as string)?.toLowerCase() || ''
+        const variants: Record<string, string> = {
+          active: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300',
+          inactive: 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800/50 dark:text-gray-300',
+          draft: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300',
+          archived: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800/50 dark:text-slate-300',
         }
 
         return (
-          <span className={badgeClasses}>
+          <Badge
+            variant="outline"
+            className={`capitalize ${variants[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'}`}
+          >
             {status ? status.charAt(0).toUpperCase() + status.slice(1) : '—'}
-          </span>
+          </Badge>
         )
       },
     },
     {
       accessorKey: 'priority',
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Priority" />
+        <div className="flex items-center gap-1.5">
+          <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Priority" />
+        </div>
       ),
       cell: ({ row }) => {
-        const priority = row.getValue('priority') as string
-
-        let badgeClasses = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border'
-
-        switch (priority?.toLowerCase()) {
-          case 'high':
-            badgeClasses += ' bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800/60'
-            break
-          case 'medium':
-            badgeClasses += ' bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
-            break
-          case 'low':
-            badgeClasses += ' bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-800/60'
-            break
-          default:
-            badgeClasses += ' bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800/50 dark:text-gray-300 dark:border-gray-700/60'
+        const priority = (row.getValue('priority') as string)?.toLowerCase() || ''
+        const variants: Record<string, string> = {
+          high: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300',
+          medium: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300',
+          low: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300',
         }
 
         return (
-          <span className={badgeClasses}>
+          <Badge
+            variant="outline"
+            className={`capitalize ${variants[priority] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'}`}
+          >
             {priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : '—'}
-          </span>
+          </Badge>
+        )
+      },
+    },
+    // ────────────────────────────────────────────────
+    // NEW COLUMN: Frequency
+    // ────────────────────────────────────────────────
+    {
+      accessorKey: 'frequency',
+      header: ({ column }) => (
+        <div className="flex items-center gap-1.5">
+          <RefreshCw className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Frequency" />
+        </div>
+      ),
+      cell: ({ row }) => {
+        const freq = (row.getValue('frequency') as string)?.toLowerCase() || ''
+
+        const displayMap: Record<string, { label: string; variant: string }> = {
+          one_time: {
+            label: 'One Time',
+            variant: 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-900/30 dark:text-indigo-300',
+          },
+          daily: {
+            label: 'Daily',
+            variant: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300',
+          },
+          weekly: {
+            label: 'Weekly',
+            variant: 'bg-cyan-100 text-cyan-800 border-cyan-300 dark:bg-cyan-900/30 dark:text-cyan-300',
+          },
+          monthly: {
+            label: 'Monthly',
+            variant: 'bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-900/30 dark:text-violet-300',
+          },
+          quarterly: {
+            label: 'Quarterly',
+            variant: 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300',
+          },
+          yearly: {
+            label: 'Yearly',
+            variant: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300 dark:bg-fuchsia-900/30 dark:text-fuchsia-300',
+          },
+          continuous: {
+            label: 'Continuous',
+            variant: 'bg-teal-100 text-teal-800 border-teal-300 dark:bg-teal-900/30 dark:text-teal-300',
+          },
+        }
+
+        const info = displayMap[freq] || {
+          label: freq ? freq.charAt(0).toUpperCase() + freq.slice(1).replace('_', ' ') : '—',
+          variant: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+        }
+
+        return (
+          <Badge
+            variant="outline"
+            className={`capitalize ${info.variant}`}
+          >
+            {info.label}
+          </Badge>
         )
       },
     },
     {
-      accessorKey: 'frequency',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Frequency" />
-      ),
-      cell: ({ row }) => (
-        <div className="capitalize">{(row.getValue('frequency') as string)?.replace('_', ' ') || '—'}</div>
-      ),
-    },
-    {
       accessorKey: 'framework.code',
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Framework" />
+        <div className="flex items-center gap-1.5">
+          <Building2 className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Framework" />
+        </div>
       ),
       cell: ({ row }) => {
-        const framework = row.original.framework
-        return framework ? `${framework.code} - ${framework.name}` : '—'
+        const fw = row.original.framework
+        return fw ? `${fw.code} - ${fw.name}` : '—'
       },
     },
-    {
-      accessorKey: 'process.name',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Process" />
-      ),
-      cell: ({ row }) => row.original.process?.name || '—',
-    },
-    {
-      accessorKey: 'compliance_level',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Compliance Level" />
-      ),
-      cell: ({ row }) => (
-        <Badge variant="secondary">{row.getValue('compliance_level') || '—'}</Badge>
-      ),
-    },
-    {
-      accessorKey: 'deadline',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Deadline" />
-      ),
-      cell: ({ row }) => row.getValue('deadline') || '—',
-    },
-    {
-      accessorKey: 'completion_date',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Completion" />
-      ),
-      cell: ({ row }) => row.getValue('completion_date') || '—',
-    },
-    {
+    // {
+    //   accessorKey: 'process.name',
+    //   header: ({ column }) => (
+    //     <div className="flex items-center gap-1.5">
+    //       <ListTodo className="h-4 w-4 text-muted-foreground" />
+    //       <DataTableColumnHeader column={column} title="Process" />
+    //     </div>
+    //   ),
+    //   cell: ({ row }) => row.original.process?.name || '—',
+    // },
+   /*  {
       accessorKey: 'tags',
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Tags" />
+        <div className="flex items-center gap-1.5">
+          <Tag className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Tags" />
+        </div>
       ),
       cell: ({ row }) => {
         const tags: string[] = row.original.tags || []
+        if (tags.length === 0) return <span className="text-muted-foreground text-sm">—</span>
+
         return (
           <div className="flex flex-wrap gap-1">
-            {tags.length > 0 ? (
-              tags.slice(0, 3).map((tag, i) => (
-                <Badge key={i} variant="outline" className="text-xs">
-                  {tag}
-                </Badge>
-              ))
-            ) : (
-              <span className="text-muted-foreground text-xs">—</span>
-            )}
+            {tags.slice(0, 3).map((tag, i) => (
+              <Badge key={i} variant="outline" className="text-xs">
+                {tag}
+              </Badge>
+            ))}
             {tags.length > 3 && (
               <Badge variant="outline" className="text-xs">
                 +{tags.length - 3}
@@ -298,7 +346,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
         )
       },
       enableSorting: false,
-    },
+    }, */
     {
       id: 'actions',
       cell: ({ row }) => {
@@ -359,14 +407,102 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Requirements</h1>
-            <p className="text-muted-foreground">
-              Manage compliance requirements
-            </p>
+            <p className="text-muted-foreground">Manage compliance requirements</p>
           </div>
           <Button onClick={() => router.visit('/requirements/create')}>
             <Plus className="mr-2 h-4 w-4" />
             Add Requirement
           </Button>
+        </div>
+
+        {/* Statistics Cards */}
+        <div className="grid gap-4 md:grid-cols-4">
+          {/* Total */}
+          <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total</p>
+                <p className="text-4xl font-extrabold text-slate-800 dark:text-slate-200">
+                  {total}
+                </p>
+              </div>
+              <div className="rounded-full bg-slate-100 dark:bg-slate-800/40 p-3 transition-transform group-hover:scale-110">
+                <AlertCircle className="h-8 w-8 text-slate-600 dark:text-slate-400" />
+              </div>
+            </div>
+            <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-slate-500 dark:bg-slate-400 transition-all duration-1000 ease-out"
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+
+          {/* Low */}
+          <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Low</p>
+                <p className="text-4xl font-extrabold text-emerald-700 dark:text-emerald-300">
+                  {lowCount}
+                </p>
+              </div>
+              <div className="rounded-full bg-emerald-100/60 dark:bg-emerald-900/30 p-3 transition-transform group-hover:scale-110">
+                <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+            <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-600/80 dark:bg-emerald-500 transition-all duration-1000 ease-out"
+                style={{ width: `${lowPercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5 text-right">{lowPercent}%</p>
+          </div>
+
+          {/* Medium */}
+          <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Medium</p>
+                <p className="text-4xl font-extrabold text-amber-700 dark:text-amber-300">
+                  {mediumCount}
+                </p>
+              </div>
+              <div className="rounded-full bg-amber-100/60 dark:bg-amber-900/30 p-3 transition-transform group-hover:scale-110">
+                <AlertTriangle className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+            <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-amber-600/80 dark:bg-amber-500 transition-all duration-1000 ease-out"
+                style={{ width: `${mediumPercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5 text-right">{mediumPercent}%</p>
+          </div>
+
+          {/* High */}
+          <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">High</p>
+                <p className="text-4xl font-extrabold text-red-700 dark:text-red-300">
+                  {highCount}
+                </p>
+              </div>
+              <div className="rounded-full bg-red-100/60 dark:bg-red-900/30 p-3 transition-transform group-hover:scale-110">
+                <AlertTriangle className="h-8 w-8 text-red-600 dark:text-red-400" />
+              </div>
+            </div>
+            <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-red-600/80 dark:bg-red-500 transition-all duration-1000 ease-out"
+                style={{ width: `${highPercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5 text-right">{highPercent}%</p>
+          </div>
         </div>
 
         {/* Data Table */}

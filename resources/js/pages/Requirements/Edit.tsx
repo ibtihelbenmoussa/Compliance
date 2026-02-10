@@ -1,163 +1,131 @@
-import { useState } from 'react'
-import { Head, Link, useForm, usePage } from '@inertiajs/react'
-import { route } from 'ziggy-js'
+import React, { useState } from 'react'
+import { Head, useForm, usePage, Link } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { ChevronLeft, Calendar as CalendarIcon } from 'lucide-react'
-import { Calendar } from "@/components/ui/calendar"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
 import { format } from 'date-fns'
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
+import { ChevronLeft, Calendar as CalendarIcon } from 'lucide-react'
 import { MultiSelect } from '@/components/ui/multi-select'
 
-// ────────────────────────────────────────────────
-// Interfaces
-// ────────────────────────────────────────────────
-
-interface Framework {
-  id: number
-  code: string
-  name: string
-}
-
-interface Process {
+type Tag = {
   id: number
   name: string
 }
 
-interface Tag {
-  id: number
-  name: string
-}
+export default function EditRequirement() {
+  const { requirement, frameworks, processes, tags, selectedTagIds } = usePage<{
+    requirement: any
+    frameworks: { id: number; code: string; name: string }[]
+    processes: { id: number; name: string }[]
+    tags: Tag[]
+    selectedTagIds: string[]
+  }>().props
 
-interface PageProps {
-  frameworks?: Framework[]
-  processes?: Process[]
-  tags?: Tag[]
-  flash?: { success?: string; error?: string }
-  [key: string]: any
-}
+  const [isMessageOpen, setIsMessageOpen] = useState(false)
+  const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success')
 
-// ────────────────────────────────────────────────
-// Composant principal
-// ────────────────────────────────────────────────
+  const formatDateString = (date: string | null) => (date ? date.split('T')[0] : '')
 
-export default function CreateRequirement() {
-  const { props } = usePage<PageProps>()
-
-  const frameworks = props.frameworks ?? []
-  const processes = props.processes ?? []
-  const tags = props.tags ?? []
-
-  const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
-    code: '',
-    title: '',
-    description: '',
-    type: '',
-    status: '',
-    priority: '',
-    frequency: '',
-    framework_id: '',
-    process_id: '',
-    owner_id: '',
-    tags: [] as string[],
-    deadline: '',
-    completion_date: '',
-    compliance_level: '',
-    attachments: '',  
+  const { data, setData, put, processing } = useForm({
+    code: requirement.code || '',
+    title: requirement.title || '',
+    description: requirement.description || '',
+    type: requirement.type || 'regulatory',
+    status: requirement.status || 'active',
+    priority: requirement.priority || 'medium',
+    frequency: requirement.frequency || 'one_time',
+    framework_id: requirement.framework_id?.toString() || '',
+    process_id: requirement.process_id?.toString() || '',
+    owner_id: requirement.owner_id || '',
+    tags: selectedTagIds || [],
+    deadline: formatDateString(requirement.deadline),
+    completion_date: formatDateString(requirement.completion_date),
+    compliance_level: requirement.compliance_level || 'Mandatory',
+    attachments: requirement.attachments || '',
   })
 
-  const [deadlineDate, setDeadlineDate] = useState<Date | undefined>(undefined)
-  const [completionDate, setCompletionDate] = useState<Date | undefined>(undefined)
-
-  const validateForm = () => {
-    let isValid = true
-    clearErrors()
-
-    if (!data.code.trim()) {
-      setError('code', 'Code is required')
-      isValid = false
-    }
-
-    if (!data.title.trim()) {
-      setError('title', 'Title is required')
-      isValid = false
-    }
-
-    if (!data.type) {
-      setError('type', 'Type is required')
-      isValid = false
-    }
-
-    if (!data.status) {
-      setError('status', 'Status is required')
-      isValid = false
-    }
-
-    if (!data.priority) {
-      setError('priority', 'Priority is required')
-      isValid = false
-    }
-
-    if (!data.frequency) {
-      setError('frequency', 'Frequency is required')
-      isValid = false
-    }
-
-    if (!data.framework_id) {
-      setError('framework_id', 'Framework is required')
-      isValid = false
-    }
-
-    if (!data.compliance_level) {
-      setError('compliance_level', 'Compliance level is required')
-      isValid = false
-    }
-
-    return isValid
-  }
+  const [deadlineDate, setDeadlineDate] = useState<Date | undefined>(
+    data.deadline ? new Date(data.deadline) : undefined
+  )
+  const [completionDate, setCompletionDate] = useState<Date | undefined>(
+    data.completion_date ? new Date(data.completion_date) : undefined
+  )
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!validateForm()) return
-
-    post(route('requirements.store'))
+    put(`/requirements/${requirement.id}`, {
+      onSuccess: () => {
+        setMessage('Requirement updated successfully.')
+        setMessageType('success')
+        setIsMessageOpen(true)
+      },
+      onError: () => {
+        setMessage('Error updating requirement.')
+        setMessageType('error')
+        setIsMessageOpen(true)
+      },
+    })
   }
 
   return (
     <AppLayout
       breadcrumbs={[
         { title: 'Requirements', href: '/requirements' },
-        { title: 'Create', href: '' },
+        { title: 'Edit', href: '' },
       ]}
     >
-      <Head title="Create Requirement" />
+      <Head title="Edit Requirement" />
+
+      {/* Message Modal */}
+      {isMessageOpen && message && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div
+            className={`bg-gray-900 border rounded-2xl p-6 w-full max-w-md shadow-2xl ${
+              messageType === 'success' ? 'border-green-600' : 'border-red-600'
+            }`}
+          >
+            <h3
+              className={`text-xl font-semibold mb-3 ${
+                messageType === 'success' ? 'text-green-400' : 'text-red-400'
+              }`}
+            >
+              {messageType === 'success' ? 'Success' : 'Error'}
+            </h3>
+            <p className="text-gray-300 mb-6">{message}</p>
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => setIsMessageOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-12 p-6 lg:p-10">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 pb-6 border-b">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Create Requirement</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Edit Requirement</h1>
             <p className="text-muted-foreground mt-2 text-lg">
-              Add a new compliance requirement
+              Modify an existing compliance requirement
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/requirements">
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Back
-              </Link>
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/requirements">
+              <ChevronLeft className="mr-2 h-4 w-4" />
+              Back
+            </Link>
+          </Button>
         </div>
 
-        {/* Formulaire */}
+        {/* Card du formulaire */}
         <Card className="border-none shadow-2xl bg-gradient-to-b from-card to-card/90 backdrop-blur-sm">
           <CardContent className="pt-10 pb-14 px-6 md:px-12 lg:px-16">
             <form onSubmit={submit} className="space-y-16">
@@ -175,13 +143,9 @@ export default function CreateRequirement() {
                     <Input
                       placeholder="REQ-001, ART-12, GDPR-5.1..."
                       value={data.code}
-                      onChange={(e) => {
-                        setData('code', e.target.value)
-                        if (errors.code) clearErrors('code')
-                      }}
-                      className={`h-11 ${errors.code ? 'border-red-500' : ''}`}
+                      onChange={e => setData('code', e.target.value)}
+                      className="h-11"
                     />
-                    {errors.code && <p className="text-red-600 text-sm mt-1.5">{errors.code}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -191,13 +155,9 @@ export default function CreateRequirement() {
                     <Input
                       placeholder="Data Protection Impact Assessment Requirement"
                       value={data.title}
-                      onChange={(e) => {
-                        setData('title', e.target.value)
-                        if (errors.title) clearErrors('title')
-                      }}
-                      className={`h-11 ${errors.title ? 'border-red-500' : ''}`}
+                      onChange={e => setData('title', e.target.value)}
+                      className="h-11"
                     />
-                    {errors.title && <p className="text-red-600 text-sm mt-1.5">{errors.title}</p>}
                   </div>
                 </div>
 
@@ -206,11 +166,8 @@ export default function CreateRequirement() {
                     <label className="text-sm font-medium flex items-center gap-1.5">
                       Type <span className="text-red-500 text-base">*</span>
                     </label>
-                    <Select
-                      value={data.type}
-                      onValueChange={(v) => setData('type', v)}
-                    >
-                      <SelectTrigger className={`h-11 ${errors.type ? 'border-red-500' : ''}`}>
+                    <Select value={data.type} onValueChange={v => setData('type', v)}>
+                      <SelectTrigger className="h-11">
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -219,18 +176,14 @@ export default function CreateRequirement() {
                         <SelectItem value="contractual">Contractual</SelectItem>
                       </SelectContent>
                     </Select>
-                    {errors.type && <p className="text-red-600 text-sm mt-1.5">{errors.type}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium flex items-center gap-1.5">
                       Status <span className="text-red-500 text-base">*</span>
                     </label>
-                    <Select
-                      value={data.status}
-                      onValueChange={(v) => setData('status', v)}
-                    >
-                      <SelectTrigger className={`h-11 ${errors.status ? 'border-red-500' : ''}`}>
+                    <Select value={data.status} onValueChange={v => setData('status', v)}>
+                      <SelectTrigger className="h-11">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
@@ -240,18 +193,14 @@ export default function CreateRequirement() {
                         <SelectItem value="archived">Archived</SelectItem>
                       </SelectContent>
                     </Select>
-                    {errors.status && <p className="text-red-600 text-sm mt-1.5">{errors.status}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium flex items-center gap-1.5">
                       Priority <span className="text-red-500 text-base">*</span>
                     </label>
-                    <Select
-                      value={data.priority}
-                      onValueChange={(v) => setData('priority', v)}
-                    >
-                      <SelectTrigger className={`h-11 ${errors.priority ? 'border-red-500' : ''}`}>
+                    <Select value={data.priority} onValueChange={v => setData('priority', v)}>
+                      <SelectTrigger className="h-11">
                         <SelectValue placeholder="Select priority" />
                       </SelectTrigger>
                       <SelectContent>
@@ -260,7 +209,6 @@ export default function CreateRequirement() {
                         <SelectItem value="high">High</SelectItem>
                       </SelectContent>
                     </Select>
-                    {errors.priority && <p className="text-red-600 text-sm mt-1.5">{errors.priority}</p>}
                   </div>
                 </div>
 
@@ -269,11 +217,8 @@ export default function CreateRequirement() {
                     <label className="text-sm font-medium flex items-center gap-1.5">
                       Frequency <span className="text-red-500 text-base">*</span>
                     </label>
-                    <Select
-                      value={data.frequency}
-                      onValueChange={(v) => setData('frequency', v)}
-                    >
-                      <SelectTrigger className={`h-11 ${errors.frequency ? 'border-red-500' : ''}`}>
+                    <Select value={data.frequency} onValueChange={v => setData('frequency', v)}>
+                      <SelectTrigger className="h-11">
                         <SelectValue placeholder="Select frequency" />
                       </SelectTrigger>
                       <SelectContent>
@@ -286,7 +231,6 @@ export default function CreateRequirement() {
                         <SelectItem value="continuous">Continuous</SelectItem>
                       </SelectContent>
                     </Select>
-                    {errors.frequency && <p className="text-red-600 text-sm mt-1.5">{errors.frequency}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -295,50 +239,37 @@ export default function CreateRequirement() {
                     </label>
                     <Select
                       value={data.framework_id}
-                      onValueChange={(v) => setData('framework_id', v)}
+                      onValueChange={v => setData('framework_id', v)}
                     >
-                      <SelectTrigger className={`h-11 ${errors.framework_id ? 'border-red-500' : ''}`}>
+                      <SelectTrigger className="h-11">
                         <SelectValue placeholder="Select framework" />
                       </SelectTrigger>
                       <SelectContent>
-                        {frameworks.length > 0 ? (
-                          frameworks.map((fw) => (
-                            <SelectItem key={fw.id} value={fw.id.toString()}>
-                              {fw.code} - {fw.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="none" disabled>
-                            No frameworks available
+                        {frameworks.map(fw => (
+                          <SelectItem key={fw.id} value={fw.id.toString()}>
+                            {fw.code} - {fw.name}
                           </SelectItem>
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
-                    {errors.framework_id && <p className="text-red-600 text-sm mt-1.5">{errors.framework_id}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Process</label>
                     <Select
                       value={data.process_id || 'none'}
-                      onValueChange={(v) => setData('process_id', v === 'none' ? '' : v)}
+                      onValueChange={v => setData('process_id', v === 'none' ? '' : v)}
                     >
                       <SelectTrigger className="h-11">
                         <SelectValue placeholder="Select process (optional)" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">None</SelectItem>
-                        {processes.length > 0 ? (
-                          processes.map((proc) => (
-                            <SelectItem key={proc.id} value={proc.id.toString()}>
-                              {proc.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="none" disabled>
-                            No processes available
+                        {processes.map(proc => (
+                          <SelectItem key={proc.id} value={proc.id.toString()}>
+                            {proc.name}
                           </SelectItem>
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -356,8 +287,8 @@ export default function CreateRequirement() {
                   <Textarea
                     placeholder="Detailed explanation of the requirement, scope, applicability..."
                     value={data.description}
-                    onChange={(e) => setData('description', e.target.value)}
-                    className="min-h-[140px]"
+                    onChange={e => setData('description', e.target.value)}
+                    className="min-h-[160px] resize-y"
                   />
                 </div>
 
@@ -368,9 +299,9 @@ export default function CreateRequirement() {
                     </label>
                     <Select
                       value={data.compliance_level}
-                      onValueChange={(v) => setData('compliance_level', v)}
+                      onValueChange={v => setData('compliance_level', v)}
                     >
-                      <SelectTrigger className={`h-11 ${errors.compliance_level ? 'border-red-500' : ''}`}>
+                      <SelectTrigger className="h-11">
                         <SelectValue placeholder="Select level" />
                       </SelectTrigger>
                       <SelectContent>
@@ -379,7 +310,6 @@ export default function CreateRequirement() {
                         <SelectItem value="Optional">Optional</SelectItem>
                       </SelectContent>
                     </Select>
-                    {errors.compliance_level && <p className="text-red-600 text-sm mt-1.5">{errors.compliance_level}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -398,9 +328,9 @@ export default function CreateRequirement() {
                         <Calendar
                           mode="single"
                           selected={deadlineDate}
-                          onSelect={(date) => {
-                            setDeadlineDate(date)
-                            setData('deadline', date ? format(date, 'yyyy-MM-dd') : '')
+                          onSelect={d => {
+                            setDeadlineDate(d)
+                            setData('deadline', d ? formatDateString(d.toISOString()) : '')
                           }}
                         />
                       </PopoverContent>
@@ -423,9 +353,9 @@ export default function CreateRequirement() {
                         <Calendar
                           mode="single"
                           selected={completionDate}
-                          onSelect={(date) => {
-                            setCompletionDate(date)
-                            setData('completion_date', date ? format(date, 'yyyy-MM-dd') : '')
+                          onSelect={d => {
+                            setCompletionDate(d)
+                            setData('completion_date', d ? formatDateString(d.toISOString()) : '')
                           }}
                         />
                       </PopoverContent>
@@ -436,32 +366,21 @@ export default function CreateRequirement() {
                 <div className="space-y-4">
                   <label className="text-sm font-medium">Tags</label>
                   <MultiSelect
-                    options={(tags ?? []).map((tag) => ({
-                      value: tag.id.toString(),
-                      label: tag.name,
-                    }))}
-                    value={data.tags}
-                    onValueChange={(selected: string[]) => setData('tags', selected)}
+                    options={tags.map(tag => ({ value: tag.id.toString(), label: tag.name }))}
+                    defaultValue={selectedTagIds}
+                    onValueChange={(values: string[]) => setData('tags', values)}
                     placeholder="Select relevant tags..."
                   />
                 </div>
 
-                {/* Attachments as URLs */}
                 <div className="space-y-4">
                   <label className="text-sm font-medium">Attachments (URLs)</label>
                   <Textarea
-                    placeholder="Paste one or more document URLs (one per line)
-Examples:
-https://drive.google.com/file/d/abc123/view
-https://company.sharepoint.com/sites/Compliance/Policy.pdf
-https://example.com/contract-2025.pdf"
+                    placeholder="Paste one or more document URLs (one per line)\nExamples:\nhttps://drive.google.com/...\nhttps://company.sharepoint.com/..."
                     value={data.attachments}
-                    onChange={(e) => setData('attachments', e.target.value)}
+                    onChange={e => setData('attachments', e.target.value)}
                     className="min-h-[120px] resize-y"
                   />
-                  {errors.attachments && (
-                    <p className="text-red-600 text-sm mt-1.5">{errors.attachments}</p>
-                  )}
                 </div>
               </div>
 
@@ -477,7 +396,7 @@ https://example.com/contract-2025.pdf"
                   size="lg"
                   className="min-w-[200px] font-medium"
                 >
-                  {processing ? 'Creating...' : 'Create Requirement'}
+                  {processing ? 'Updating...' : 'Update Requirement'}
                 </Button>
               </div>
             </form>

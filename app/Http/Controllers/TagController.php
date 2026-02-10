@@ -1,87 +1,63 @@
 <?php
-
+ 
 namespace App\Http\Controllers;
-
+ 
 use App\Models\Tag;
 use App\Models\Framework;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Http\RedirectResponse;
-
+use Illuminate\Support\Facades\Auth;
+ 
 class TagController extends Controller
 {
-    public function index()
+    private function orgId()
     {
-        return Inertia::render('Tags/Index', [
-            'tags' => Tag::orderBy('name')->get(),
-        ]);
+        return Auth::user()->current_organization_id;
     }
-
-    public function create()
+ 
+    private function activeTags()
     {
-        $tags = Tag::all();
-
-        return Inertia::render('Tags/Create', [
-            'tags' => $tags,
-        ]);
-
-
+        return Tag::where('organization_id', $this->orgId())
+            ->where('is_deleted', 0)
+            ->orderBy('name')
+            ->get();
     }
-
+ 
+    /** CREATE */
     public function store(Request $request)
     {
-        $user = auth()->user();
-        $currentOrgId = $user->current_organization_id;
-
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:tags,name',
+            'name' => 'required|string|max:255|unique:tags,name,NULL,id,organization_id,' . $this->orgId(),
         ]);
-
-        $tag = new Tag();
-        $tag->name = $request->name;
-        $tag->organization_id = $currentOrgId;
-        $tag->save();
-
-        return Inertia::render('Frameworks/Create', [
-            'tags' => Tag::where('organization_id', $user->current_organization_id)
-                ->where('is_deleted', 0)->get(),
-            'tag' => $tag, 
-            'flash' => ['success' => 'Tag created successfully']
+ 
+        $tag = Tag::create([
+            'name' => trim($validated['name']),
+            'organization_id' => $this->orgId(),
+            'is_deleted' => 0,
+        ]);
+ 
+        return redirect()->back()->with([
+            'success' => 'Tag created successfully',
+            'tag' => $tag,
+            'tags' => $this->activeTags(),
         ]);
     }
-
-
-
-    public function update(Request $request, Tag $tag)
+ 
+    /** UPDATE */
+     public function update(Request $request, Tag $tag)
     {
-        $request->validate([
-            'name' => 'required|string|unique:tags,name,' . $tag->id,
+        $data = $request->validate([
+            'name' => 'required|string|max:255|unique:tags,name,' . $tag->id,
         ]);
-
-        $tag->update([
-            'name' => trim($request->name),
-        ]);
-
-        return back()->with('success', 'tag mise à jour');
+ 
+        $tag->update($data);
+ 
+        return back()->with('success', 'Tag updated successfully');
     }
-
-
-    public function destroy(Tag $tag): RedirectResponse
+ 
+    public function destroy(Tag $tag)
     {
-        $framework = Framework::where('is_deleted', 0)
-            ->where('tags', $tag->id)
-            ->first();
-
-        if ($framework) {
-            return redirect()->back()
-                ->with('error', 'Deletion of this tag is impossible because it is assigned to a framework.');
-        }
-
-        $tag->is_deleted = 1;
-        $tag->save();
-
-        return redirect()->back()
-            ->with('success', 'The tag has been successfully deleted.');
+        $tag->update(['is_deleted'=>1]);
+ 
+        return back()->with('success', 'Tag deleted successfully');
     }
-
 }

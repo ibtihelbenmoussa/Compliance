@@ -13,6 +13,8 @@ return new class extends Migration {
         Schema::create('requirements', function (Blueprint $table) {
 
             $table->bigIncrements('id');
+             $table->bigInteger('organization_id');
+
             $table->string('code')->unique();
             $table->string('title');
             $table->text('description')->nullable();
@@ -43,6 +45,8 @@ return new class extends Migration {
                 ->default('Mandatory');
 
             $table->text('attachments')->nullable();
+             $table->integer('is_deleted')->default(0);
+
             $table->timestamps();
         });
     }

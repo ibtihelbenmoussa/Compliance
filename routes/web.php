@@ -88,36 +88,47 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('roles', App\Http\Controllers\RoleController::class);
         Route::resource('permissions', App\Http\Controllers\PermissionController::class)->only(['index', 'create', 'store', 'destroy']);
 
-        //frameworks
-        Route::get('frameworks', [FrameworkController::class, 'index'])->name('frameworks.index');
-        Route::get('frameworks/create', [FrameworkController::class, 'create'])->name('frameworks.create');
-        Route::post('frameworks', [FrameworkController::class, 'store'])->name('frameworks.store');
-        Route::get('frameworks/{framework}/edit', [FrameworkController::class, 'edit'])->name('frameworks.edit');
-        Route::put('frameworks/{framework}', [FrameworkController::class, 'update'])->name('frameworks.update');
-        Route::delete('frameworks/{framework}', [FrameworkController::class, 'destroy'])->name('frameworks.destroy');
-       Route::get('/frameworks/export', [FrameworkController::class, 'export'])
-    ->name('frameworks.export');
-        Route::get('/frameworks/{framework}', [FrameworkController::class, 'show']);
-
-
-
-        //jurisdictions
-   Route::resource('jurisdictions', JurisdictionController::class)
-    ->only(['index', 'create', 'store', 'update', 'destroy']);
-
-
-// tags
-Route::resource('tags', TagController::class)
-    ->only(['index', 'create', 'store', 'update', 'destroy']);
-
-
-// tags
-Route::resource('requirements', RequirementController::class)
-    ->only(['index', 'create', 'store', 'update', 'destroy']);
-
-
 
     });
+
+
+    //frameworks
+    Route::get('frameworks', [FrameworkController::class, 'index'])->name('frameworks.index');
+    Route::get('frameworks/create', [FrameworkController::class, 'create'])->name('frameworks.create');
+    Route::post('frameworks', [FrameworkController::class, 'store'])->name('frameworks.store');
+    Route::get('frameworks/{framework}/edit', [FrameworkController::class, 'edit'])->name('frameworks.edit');
+    Route::put('frameworks/{framework}', [FrameworkController::class, 'update'])->name('frameworks.update');
+    Route::delete('frameworks/{framework}', [FrameworkController::class, 'destroy'])->name('frameworks.destroy');
+    Route::get('/frameworks/export', [FrameworkController::class, 'export'])
+        ->name('frameworks.export');
+    Route::get('/frameworks/{framework}', [FrameworkController::class, 'show']);
+
+
+
+    //jurisdictions
+    Route::resource('jurisdictions', JurisdictionController::class)
+        ->only(['index', 'create', 'store', 'update', 'destroy']);
+
+
+
+    Route::resource('tags', TagController::class)
+        ->only(['index', 'create', 'store', 'update', 'destroy']);
+
+
+
+    /*  Route::resource('requirements', RequirementController::class)
+         ->only(['index', 'create', 'store', 'update', 'destroy']); */
+    Route::get('requirements', [RequirementController::class, 'index'])->name('requirements.index');
+        Route::get('/requirements/export', [RequirementController::class, 'export'])
+    ->name('requirements.export');
+    Route::post('StoreRequirements', [RequirementController::class, 'store'])->name('requirements.store');
+    Route::get('requirements/create', [RequirementController::class, 'create'])->name('requirements.create');
+    Route::get('/requirements/{requirement}', [RequirementController::class, 'show'])->name('requirements.show');
+    Route::get('/requirements/{requirement}/edit', [RequirementController::class, 'edit'])->name('requirements.edit');
+    Route::put('/requirements/{requirement}', [RequirementController::class, 'update'])->name('requirements.update');
+    Route::delete('/requirements/{requirement}', [RequirementController::class, 'destroy'])->name('requirements.destroy');
+
+
 });
 
 require __DIR__ . '/settings.php';
