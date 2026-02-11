@@ -32,14 +32,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  Key,          // 🆔 Code
-  BookOpen,     // 📘 Name
-  RefreshCw,    // 🔁 Version
-  Layers,       // 🗂️ Type
-  User,         // 👤 Publisher
-  Globe,        // 🌍 Jurisdiction
-  Tag,          // 🏷️ Tags
-  SignalHigh,   // 🚦 Status
+  Key,
+  BookOpen,
+  RefreshCw,
+  Layers,
+  User,
+  Globe,
+  Tag,
+  SignalHigh,
   Building2,
   CheckCircle2,
   Eye,
@@ -50,7 +50,8 @@ import {
   Trash2,
   Archive,
   ArrowDownUp,
-  ChevronDown,
+  LayoutGrid,
+  Table as TableIcon,
 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PaginatedData } from '@/types'
@@ -81,6 +82,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [frameworkToDelete, setFrameworkToDelete] = useState<Framework | null>(null)
   const [exportLoading, setExportLoading] = useState(false)
+  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table')
 
   const handleExport = async () => {
     setExportLoading(true)
@@ -108,6 +110,16 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
       setExportLoading(false)
     }
   }
+
+  // Group frameworks by status for Kanban view
+  const groupedByStatus = frameworks.data.reduce((acc, fw) => {
+    const status = (fw.status || 'unknown').toLowerCase()
+    if (!acc[status]) acc[status] = []
+    acc[status].push(fw)
+    return acc
+  }, {} as Record<string, Framework[]>)
+
+  const statusOrder = ['active', 'draft', 'archived']
 
   const statusOptions: FacetedFilterOption[] = [
     { label: 'Active', value: 'active', icon: CheckCircle2 },
@@ -141,9 +153,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
           <DataTableColumnHeader column={column} title="Code" />
         </div>
       ),
-      cell: ({ row }) => (
-        <div className="font-mono">{row.getValue('code')}</div>
-      ),
+      cell: ({ row }) => <div className="font-mono">{row.getValue('code')}</div>,
     },
     {
       accessorKey: 'name',
@@ -154,10 +164,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
         </div>
       ),
       cell: ({ row }) => (
-        <Link
-          href={`/frameworks/${row.original.id}`}
-          className="font-medium hover:underline"
-        >
+        <Link href={`/frameworks/${row.original.id}`} className="font-medium hover:underline">
           {row.getValue('name')}
         </Link>
       ),
@@ -180,9 +187,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
           <DataTableColumnHeader column={column} title="Type" />
         </div>
       ),
-      cell: ({ row }) => (
-        <div className="capitalize">{row.getValue('type') || '—'}</div>
-      ),
+      cell: ({ row }) => <div className="capitalize">{row.getValue('type') || '—'}</div>,
     },
     {
       accessorKey: 'publisher',
@@ -202,8 +207,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
           <DataTableColumnHeader column={column} title="Jurisdiction" />
         </div>
       ),
-      cell: ({ row }) =>
-        row.original.jurisdiction?.name ?? '—',
+      cell: ({ row }) => row.original.jurisdiction?.name ?? '—',
     },
     {
       accessorKey: 'status',
@@ -225,17 +229,14 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
             pillClasses += ' bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
             icon = <CheckCircle2 className="h-3.5 w-3.5" />
             break
-
           case 'draft':
             pillClasses += ' bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
             icon = <FileText className="h-3.5 w-3.5" />
             break
-
           case 'archived':
             pillClasses += ' bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800/50 dark:text-gray-300 dark:border-gray-700/60'
             icon = <Archive className="h-3.5 w-3.5" />
             break
-
           default:
             pillClasses += ' bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800/50 dark:text-gray-300 dark:border-gray-700/60'
             icon = <FileText className="h-3.5 w-3.5" />
@@ -255,32 +256,26 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
         <div className="flex items-center gap-1.5">
           <Tag className="h-4 w-4 text-muted-foreground" />
           <DataTableColumnHeader column={column} title="Tags" />
-          <ArrowDownUp className="h-4 w-4 text-muted-foreground opacity-70" />
         </div>
       ),
       cell: ({ row }) => {
         const tags: string[] = row.original.tags || []
-
         return (
-          <div className="flex items-center gap-1.5">
-            <div className="flex flex-wrap gap-1 max-w-[180px]">
-              {tags.length > 0 ? (
-                tags.slice(0, 3).map((tag, i) => (
-                  <Badge key={i} variant="secondary" className="px-2 py-0.5 text-xs">
-                    {tag}
-                  </Badge>
-                ))
-              ) : (
-                <span className="text-muted-foreground text-xs">—</span>
-              )}
-            </div>
-
+          <div className="flex flex-wrap gap-1">
+            {tags.length === 0 ? (
+              <span className="text-muted-foreground text-xs">—</span>
+            ) : (
+              tags.slice(0, 3).map((tag, i) => (
+                <Badge key={i} variant="secondary" className="text-xs">
+                  {tag}
+                </Badge>
+              ))
+            )}
             {tags.length > 3 && (
-              <Badge variant="outline" className="text-xs px-1.5 py-0.5">
+              <Badge variant="outline" className="text-xs">
                 +{tags.length - 3}
               </Badge>
             )}
-            {/* Les chevrons ont été supprimés ici */}
           </div>
         )
       },
@@ -342,28 +337,52 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
       <Head title="Frameworks" />
 
       <div className="space-y-6 p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+        {/* Header + View Toggle */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Frameworks</h1>
-            <p className="text-muted-foreground">
-              Manage compliance frameworks
-            </p>
+            <p className="text-muted-foreground">Manage compliance frameworks</p>
           </div>
-          <Button onClick={() => router.visit('/frameworks/create')}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Framework
-          </Button>
+
+          <div className="flex items-center gap-4">
+            <Button onClick={() => router.visit('/frameworks/create')}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Framework
+            </Button>
+
+            {/* View Mode Toggle */}
+            <div className="border rounded-md inline-flex bg-muted/40">
+              <Button
+                variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="rounded-r-none px-4"
+                onClick={() => setViewMode('table')}
+              >
+                <TableIcon className="mr-1.5 h-4 w-4" />
+                Table
+              </Button>
+              <Button
+                variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="rounded-l-none border-l-0 px-4"
+                onClick={() => setViewMode('kanban')}
+              >
+                <LayoutGrid className="mr-1.5 h-4 w-4" />
+                Board
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Statistics Cards */}
         <div className="grid gap-4 md:grid-cols-4">
+          {/* Total */}
           <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total</p>
                 <p className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  {frameworks.total}
+                  {total}
                 </p>
               </div>
               <div className="rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20 p-3 transition-transform group-hover:scale-110">
@@ -371,13 +390,11 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
               </div>
             </div>
             <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ease-out"
-                style={{ width: '100%' }}
-              />
+              <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ease-out" style={{ width: '100%' }} />
             </div>
           </div>
 
+          {/* Active */}
           <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div>
@@ -391,14 +408,12 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
               </div>
             </div>
             <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-green-500 transition-all duration-1000 ease-out"
-                style={{ width: `${activePercent}%` }}
-              />
+              <div className="h-full bg-gradient-to-r from-emerald-500 to-green-500 transition-all duration-1000 ease-out" style={{ width: `${activePercent}%` }} />
             </div>
             <p className="text-xs text-muted-foreground mt-1.5 text-right">{activePercent}%</p>
           </div>
 
+          {/* Draft */}
           <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div>
@@ -412,14 +427,12 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
               </div>
             </div>
             <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-1000 ease-out"
-                style={{ width: `${draftPercent}%` }}
-              />
+              <div className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-1000 ease-out" style={{ width: `${draftPercent}%` }} />
             </div>
             <p className="text-xs text-muted-foreground mt-1.5 text-right">{draftPercent}%</p>
           </div>
 
+          {/* Archived */}
           <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div>
@@ -433,46 +446,122 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
               </div>
             </div>
             <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-gray-500 to-slate-500 transition-all duration-1000 ease-out"
-                style={{ width: `${archivedPercent}%` }}
-              />
+              <div className="h-full bg-gradient-to-r from-gray-500 to-slate-500 transition-all duration-1000 ease-out" style={{ width: `${archivedPercent}%` }} />
             </div>
             <p className="text-xs text-muted-foreground mt-1.5 text-right">{archivedPercent}%</p>
           </div>
         </div>
 
-        {/* Data Table */}
-        <ServerDataTable
-          columns={columns}
-          data={frameworks}
-          searchPlaceholder="Search by name or code..."
-          onExport={handleExport}
-          exportLoading={exportLoading}
-          filters={
-            <>
-              <DataTableFacetedFilter
-                filterKey="status"
-                title="Status"
-                options={statusOptions}
-              />
-              <DataTableSelectFilter
-                filterKey="type"
-                title="Type"
-                placeholder="All types"
-                options={typeOptions}
-              />
-            </>
-          }
-          initialState={{
-            columnPinning: {
-              right: ['actions'],
-            },
-          }}
-        />
+        {/* Contenu principal : Table ou Kanban */}
+        {viewMode === 'table' ? (
+          <ServerDataTable
+            columns={columns}
+            data={frameworks}
+            searchPlaceholder="Search by name or code..."
+            onExport={handleExport}
+            exportLoading={exportLoading}
+            filters={
+              <>
+                <DataTableFacetedFilter filterKey="status" title="Status" options={statusOptions} />
+                <DataTableSelectFilter filterKey="type" title="Type" placeholder="All types" options={typeOptions} />
+              </>
+            }
+            initialState={{
+              columnPinning: {
+                right: ['actions'],
+              },
+            }}
+          />
+        ) : (
+          // Kanban / Board View
+          <div className="overflow-x-auto pb-6">
+            <div className="flex gap-5 min-w-fit">
+              {statusOrder.map((statusKey) => {
+                const items = groupedByStatus[statusKey] || []
+                const title = statusKey.charAt(0).toUpperCase() + statusKey.slice(1)
+                const count = items.length
+
+                return (
+                  <div
+                    key={statusKey}
+                    className="bg-muted/30 rounded-xl border w-[360px] flex flex-col shadow-sm"
+                  >
+                    {/* En-tête de colonne */}
+                    <div className="p-4 border-b bg-background/80 sticky top-0 backdrop-blur-sm z-10 rounded-t-xl">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-lg">{title}</h3>
+                        <Badge variant="secondary" className="text-sm">
+                          {count}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Cartes */}
+                    <div className="p-4 flex-1 space-y-4 overflow-y-auto max-h-[65vh]">
+                      {items.length === 0 ? (
+                        <div className="text-center text-muted-foreground py-12 italic">
+                          Aucun framework dans cette colonne
+                        </div>
+                      ) : (
+                        items.map((fw) => (
+                          <div
+                            key={fw.id}
+                            className="bg-card border rounded-lg p-4 shadow hover:shadow-md transition-all cursor-pointer group"
+                            onClick={() => router.visit(`/frameworks/${fw.id}`)}
+                          >
+                            <div className="font-medium mb-1.5 group-hover:underline">
+                              {fw.code} — {fw.name}
+                            </div>
+
+                            <div className="text-sm text-muted-foreground mb-3">
+                              {fw.version ? `Version ${fw.version}` : 'Sans version'}
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {fw.type.replace('_', ' ')}
+                              </Badge>
+
+                              {fw.jurisdiction && (
+                                <Badge variant="outline" className="text-xs">
+                                  {fw.jurisdiction.name}
+                                </Badge>
+                              )}
+
+                              {fw.publisher && (
+                                <Badge variant="outline" className="text-xs">
+                                  {fw.publisher}
+                                </Badge>
+                              )}
+                            </div>
+
+                            {fw.tags && fw.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-3">
+                                {fw.tags.slice(0, 3).map((tag, i) => (
+                                  <Badge key={i} variant="secondary" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                                {fw.tags.length > 3 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    +{fw.tags.length - 3}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Dialog de suppression */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

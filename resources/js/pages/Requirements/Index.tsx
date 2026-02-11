@@ -49,7 +49,9 @@ import {
   Building2,
   ListTodo,
   Tag,
-  RefreshCw,          
+  RefreshCw,
+  LayoutGrid,
+  Table as TableIcon,
 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PaginatedData } from '@/types'
@@ -91,6 +93,7 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [requirementToDelete, setRequirementToDelete] = useState<Requirement | null>(null)
   const [exportLoading, setExportLoading] = useState(false)
+  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table')
 
   const {
     total = 0,
@@ -101,6 +104,17 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
     mediumPercent = 0,
     highPercent = 0,
   } = stats
+
+  // Group requirements by status for Kanban view
+  const groupedByStatus = requirements.data.reduce((acc, req) => {
+    const status = (req.status || 'unknown').toLowerCase()
+    if (!acc[status]) acc[status] = []
+    acc[status].push(req)
+    return acc
+  }, {} as Record<string, Requirement[]>)
+
+  // Order of Kanban columns
+  const statusOrder = ['active', 'draft', 'archived']
 
   const handleExport = async () => {
     setExportLoading(true)
@@ -235,9 +249,6 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
         )
       },
     },
-    // ────────────────────────────────────────────────
-    // NEW COLUMN: Frequency
-    // ────────────────────────────────────────────────
     {
       accessorKey: 'frequency',
       header: ({ column }) => (
@@ -286,10 +297,7 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
         }
 
         return (
-          <Badge
-            variant="outline"
-            className={`capitalize ${info.variant}`}
-          >
+          <Badge variant="outline" className={`capitalize ${info.variant}`}>
             {info.label}
           </Badge>
         )
@@ -308,45 +316,6 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
         return fw ? `${fw.code} - ${fw.name}` : '—'
       },
     },
-    // {
-    //   accessorKey: 'process.name',
-    //   header: ({ column }) => (
-    //     <div className="flex items-center gap-1.5">
-    //       <ListTodo className="h-4 w-4 text-muted-foreground" />
-    //       <DataTableColumnHeader column={column} title="Process" />
-    //     </div>
-    //   ),
-    //   cell: ({ row }) => row.original.process?.name || '—',
-    // },
-   /*  {
-      accessorKey: 'tags',
-      header: ({ column }) => (
-        <div className="flex items-center gap-1.5">
-          <Tag className="h-4 w-4 text-muted-foreground" />
-          <DataTableColumnHeader column={column} title="Tags" />
-        </div>
-      ),
-      cell: ({ row }) => {
-        const tags: string[] = row.original.tags || []
-        if (tags.length === 0) return <span className="text-muted-foreground text-sm">—</span>
-
-        return (
-          <div className="flex flex-wrap gap-1">
-            {tags.slice(0, 3).map((tag, i) => (
-              <Badge key={i} variant="outline" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-            {tags.length > 3 && (
-              <Badge variant="outline" className="text-xs">
-                +{tags.length - 3}
-              </Badge>
-            )}
-          </div>
-        )
-      },
-      enableSorting: false,
-    }, */
     {
       id: 'actions',
       cell: ({ row }) => {
@@ -403,16 +372,41 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
       <Head title="Requirements" />
 
       <div className="space-y-6 p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+        {/* Header + View Toggle */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Requirements</h1>
             <p className="text-muted-foreground">Manage compliance requirements</p>
           </div>
-          <Button onClick={() => router.visit('/requirements/create')}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Requirement
-          </Button>
+
+          <div className="flex items-center gap-4">
+            <Button onClick={() => router.visit('/requirements/create')}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Requirement
+            </Button>
+
+            {/* View Toggle */}
+            <div className="border rounded-md inline-flex bg-muted/40">
+              <Button
+                variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="rounded-r-none px-4"
+                onClick={() => setViewMode('table')}
+              >
+                <TableIcon className="mr-1.5 h-4 w-4" />
+                Table
+              </Button>
+              <Button
+                variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="rounded-l-none border-l-0 px-4"
+                onClick={() => setViewMode('kanban')}
+              >
+                <LayoutGrid className="mr-1.5 h-4 w-4" />
+                Board
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Statistics Cards */}
@@ -422,17 +416,17 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total</p>
-                <p className="text-4xl font-extrabold text-slate-800 dark:text-slate-200">
+                <p className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                   {total}
                 </p>
               </div>
-              <div className="rounded-full bg-slate-100 dark:bg-slate-800/40 p-3 transition-transform group-hover:scale-110">
-                <AlertCircle className="h-8 w-8 text-slate-600 dark:text-slate-400" />
+              <div className="rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20 p-3 transition-transform group-hover:scale-110">
+                <AlertCircle className="h-8 w-8 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
             <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
               <div
-                className="h-full bg-slate-500 dark:bg-slate-400 transition-all duration-1000 ease-out"
+                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ease-out"
                 style={{ width: '100%' }}
               />
             </div>
@@ -505,52 +499,136 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
           </div>
         </div>
 
-        {/* Data Table */}
-        <ServerDataTable
-          columns={columns}
-          data={requirements}
-          searchPlaceholder="Search by code or title..."
-          onExport={handleExport}
-          exportLoading={exportLoading}
-          filters={
-            <>
-              <DataTableFacetedFilter
-                filterKey="status"
-                title="Status"
-                options={statusOptions}
-              />
-              <DataTableSelectFilter
-                filterKey="priority"
-                title="Priority"
-                placeholder="All priorities"
-                options={priorityOptions}
-              />
-            </>
-          }
-          initialState={{
-            columnPinning: {
-              right: ['actions'],
-            },
-          }}
-        />
+        {/* View Content */}
+        {viewMode === 'table' ? (
+          <ServerDataTable
+            columns={columns}
+            data={requirements}
+            searchPlaceholder="Search by code or title..."
+            onExport={handleExport}
+            exportLoading={exportLoading}
+            filters={
+              <>
+                <DataTableFacetedFilter
+                  filterKey="status"
+                  title="Status"
+                  options={statusOptions}
+                />
+                <DataTableSelectFilter
+                  filterKey="priority"
+                  title="Priority"
+                  placeholder="All priorities"
+                  options={priorityOptions}
+                />
+              </>
+            }
+            initialState={{
+              columnPinning: {
+                right: ['actions'],
+              },
+            }}
+          />
+        ) : (
+          // Kanban Board View
+          <div className="overflow-x-auto pb-6">
+            <div className="flex gap-5 min-w-fit">
+              {statusOrder.map((statusKey) => {
+                const items = groupedByStatus[statusKey] || []
+                const title = statusKey.charAt(0).toUpperCase() + statusKey.slice(1)
+                const count = items.length
+
+                return (
+                  <div
+                    key={statusKey}
+                    className="bg-muted/30 rounded-xl border w-[360px] flex flex-col shadow-sm"
+                  >
+                    {/* Column Header */}
+                    <div className="p-4 border-b bg-background/80 sticky top-0 backdrop-blur-sm z-10 rounded-t-xl">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-lg">{title}</h3>
+                        <Badge variant="secondary" className="text-sm">
+                          {count}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Cards */}
+                    <div className="p-4 flex-1 space-y-4 overflow-y-auto max-h-[65vh]">
+                      {items.length === 0 ? (
+                        <div className="text-center text-muted-foreground py-12 italic">
+                          Aucune exigence dans cette colonne
+                        </div>
+                      ) : (
+                        items.map((req) => (
+                          <div
+                            key={req.id}
+                            className="bg-card border rounded-lg p-4 shadow hover:shadow-md transition-all cursor-pointer group"
+                            onClick={() => router.visit(`/requirements/${req.id}`)}
+                          >
+                            <div className="font-medium mb-1.5 group-hover:underline">
+                              {req.code} — {req.title}
+                            </div>
+
+                            {req.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                                {req.description}
+                              </p>
+                            )}
+
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge
+                                variant="outline"
+                                className={`text-xs ${
+                                  req.priority === 'high'
+                                    ? 'border-red-400 text-red-600'
+                                    : req.priority === 'medium'
+                                    ? 'border-amber-400 text-amber-600'
+                                    : 'border-green-400 text-green-600'
+                                }`}
+                              >
+                                {req.priority?.toUpperCase()}
+                              </Badge>
+
+                              {req.frequency && (
+                                <Badge variant="outline" className="text-xs">
+                                  {req.frequency.replace('_', ' ')}
+                                </Badge>
+                              )}
+
+                              {req.framework && (
+                                <Badge variant="outline" className="text-xs">
+                                  {req.framework.code}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Requirement</AlertDialogTitle>
+            <AlertDialogTitle>Supprimer l'exigence</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{requirementToDelete?.title}"? This action cannot be undone.
+              Êtes-vous sûr de vouloir supprimer "{requirementToDelete?.title}" ? Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               className="bg-destructive hover:bg-destructive/90"
             >
-              Delete
+              Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
