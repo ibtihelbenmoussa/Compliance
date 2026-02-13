@@ -37,7 +37,7 @@ return new class extends Migration {
             $table->unsignedBigInteger('process_id');
             $table->text('owner_id')->nullable();
 
-            $table->json('tags')->nullable();
+           // $table->json('tags')->nullable();
             $table->date('deadline')->nullable();
             $table->date('completion_date')->nullable();
 

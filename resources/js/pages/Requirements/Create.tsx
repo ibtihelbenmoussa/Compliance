@@ -55,7 +55,7 @@ export default function CreateRequirement() {
     frequency: '',
     framework_id: '',
     process_id: '',
-    tags: [] as string[],
+    tags: [] as string[], // array of tag IDs
     deadline: '',
     completion_date: '',
     compliance_level: '',
@@ -65,65 +65,65 @@ export default function CreateRequirement() {
   const [deadlineDate, setDeadlineDate] = useState<Date | undefined>(undefined)
   const [completionDate, setCompletionDate] = useState<Date | undefined>(undefined)
 
-  // Validation complète avant envoi
+  // Full form validation
   const validateForm = () => {
     let isValid = true
     clearErrors()
 
-    // Code (obligatoire + majuscules)
+    // Code (required + uppercase)
     if (!data.code.trim()) {
-      setError('code', 'Le code est obligatoire')
+      setError('code', 'Code is required')
       isValid = false
     } else if (data.code.trim().length < 3) {
-      setError('code', 'Le code doit contenir au moins 3 caractères')
+      setError('code', 'Code must be at least 3 characters')
       isValid = false
     }
 
     // Title
     if (!data.title.trim()) {
-      setError('title', 'Le titre est obligatoire')
+      setError('title', 'Title is required')
       isValid = false
     }
 
     // Type
     if (!data.type) {
-      setError('type', 'Le type est obligatoire')
+      setError('type', 'Type is required')
       isValid = false
     }
 
     // Status
     if (!data.status) {
-      setError('status', 'Le statut est obligatoire')
+      setError('status', 'Status is required')
       isValid = false
     }
 
     // Priority
     if (!data.priority) {
-      setError('priority', 'La priorité est obligatoire')
+      setError('priority', 'Priority is required')
       isValid = false
     }
 
     // Frequency
     if (!data.frequency) {
-      setError('frequency', 'La fréquence est obligatoire')
+      setError('frequency', 'Frequency is required')
       isValid = false
     }
 
     // Framework
     if (!data.framework_id) {
-      setError('framework_id', 'Le framework est obligatoire')
+      setError('framework_id', 'Framework is required')
       isValid = false
     }
 
     // Compliance Level
     if (!data.compliance_level) {
-      setError('compliance_level', 'Le niveau de conformité est obligatoire')
+      setError('compliance_level', 'Compliance level is required')
       isValid = false
     }
 
-    // Deadline (optionnel mais si rempli → doit être une date valide)
+    // Deadline (optional but must be valid if filled)
     if (data.deadline && isNaN(new Date(data.deadline).getTime())) {
-      setError('deadline', 'Format de date invalide')
+      setError('deadline', 'Invalid date format')
       isValid = false
     }
 
@@ -154,37 +154,37 @@ export default function CreateRequirement() {
     <AppLayout
       breadcrumbs={[
         { title: 'Requirements', href: '/requirements' },
-        { title: 'Créer', href: '' },
+        { title: 'Create', href: '' },
       ]}
     >
-      <Head title="Créer une exigence" />
+      <Head title="Create Requirement" />
 
       <div className="space-y-12 p-6 lg:p-10">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 pb-6 border-b">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Créer une exigence</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Create Requirement</h1>
             <p className="text-muted-foreground mt-2 text-lg">
-              Ajouter une nouvelle exigence de conformité
+              Add a new compliance requirement
             </p>
           </div>
 
           <Button variant="outline" size="sm" asChild>
             <Link href="/requirements">
               <ChevronLeft className="mr-2 h-4 w-4" />
-              Retour
+              Back
             </Link>
           </Button>
         </div>
 
-        {/* Formulaire */}
+        {/* Form */}
         <Card className="border-none shadow-2xl bg-gradient-to-b from-card to-card/90 backdrop-blur-sm">
           <CardContent className="pt-10 pb-14 px-6 md:px-12 lg:px-16">
             <form onSubmit={submit} className="space-y-16">
               {/* Basic Information */}
               <div className="space-y-10">
                 <h2 className="text-2xl font-semibold tracking-tight border-b pb-4">
-                  Informations de base
+                  Basic Information
                 </h2>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -204,10 +204,10 @@ export default function CreateRequirement() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium flex items-center gap-1.5">
-                      Titre <span className="text-red-500 text-base">*</span>
+                      Title <span className="text-red-500 text-base">*</span>
                     </label>
                     <Input
-                      placeholder="Évaluation d'impact sur la protection des données..."
+                      placeholder="Data Protection Impact Assessment Requirement..."
                       value={data.title}
                       onChange={(e) => {
                         setData('title', e.target.value)
@@ -232,12 +232,12 @@ export default function CreateRequirement() {
                       }}
                     >
                       <SelectTrigger className={`h-11 ${errors.type ? 'border-red-500' : ''}`}>
-                        <SelectValue placeholder="Sélectionner le type" />
+                        <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="regulatory">Réglementaire</SelectItem>
-                        <SelectItem value="internal">Interne</SelectItem>
-                        <SelectItem value="contractual">Contractuel</SelectItem>
+                        <SelectItem value="regulatory">Regulatory</SelectItem>
+                        <SelectItem value="internal">Internal</SelectItem>
+                        <SelectItem value="contractual">Contractual</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.type && <p className="text-red-600 text-sm mt-1.5">{errors.type}</p>}
@@ -245,7 +245,7 @@ export default function CreateRequirement() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium flex items-center gap-1.5">
-                      Statut <span className="text-red-500 text-base">*</span>
+                      Status <span className="text-red-500 text-base">*</span>
                     </label>
                     <Select
                       value={data.status}
@@ -255,13 +255,13 @@ export default function CreateRequirement() {
                       }}
                     >
                       <SelectTrigger className={`h-11 ${errors.status ? 'border-red-500' : ''}`}>
-                        <SelectValue placeholder="Sélectionner le statut" />
+                        <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="active">Actif</SelectItem>
-                        <SelectItem value="inactive">Inactif</SelectItem>
-                        <SelectItem value="draft">Brouillon</SelectItem>
-                        <SelectItem value="archived">Archivé</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="archived">Archived</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.status && <p className="text-red-600 text-sm mt-1.5">{errors.status}</p>}
@@ -269,7 +269,7 @@ export default function CreateRequirement() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium flex items-center gap-1.5">
-                      Priorité <span className="text-red-500 text-base">*</span>
+                      Priority <span className="text-red-500 text-base">*</span>
                     </label>
                     <Select
                       value={data.priority}
@@ -279,12 +279,12 @@ export default function CreateRequirement() {
                       }}
                     >
                       <SelectTrigger className={`h-11 ${errors.priority ? 'border-red-500' : ''}`}>
-                        <SelectValue placeholder="Sélectionner la priorité" />
+                        <SelectValue placeholder="Select priority" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">Faible</SelectItem>
-                        <SelectItem value="medium">Moyenne</SelectItem>
-                        <SelectItem value="high">Élevée</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.priority && <p className="text-red-600 text-sm mt-1.5">{errors.priority}</p>}
@@ -294,7 +294,7 @@ export default function CreateRequirement() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   <div className="space-y-2">
                     <label className="text-sm font-medium flex items-center gap-1.5">
-                      Fréquence <span className="text-red-500 text-base">*</span>
+                      Frequency <span className="text-red-500 text-base">*</span>
                     </label>
                     <Select
                       value={data.frequency}
@@ -304,16 +304,16 @@ export default function CreateRequirement() {
                       }}
                     >
                       <SelectTrigger className={`h-11 ${errors.frequency ? 'border-red-500' : ''}`}>
-                        <SelectValue placeholder="Sélectionner la fréquence" />
+                        <SelectValue placeholder="Select frequency" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="one_time">Ponctuelle</SelectItem>
-                        <SelectItem value="daily">Quotidienne</SelectItem>
-                        <SelectItem value="weekly">Hebdomadaire</SelectItem>
-                        <SelectItem value="monthly">Mensuelle</SelectItem>
-                        <SelectItem value="quarterly">Trimestrielle</SelectItem>
-                        <SelectItem value="yearly">Annuelle</SelectItem>
-                        <SelectItem value="continuous">Continue</SelectItem>
+                        <SelectItem value="one_time">One Time</SelectItem>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="yearly">Yearly</SelectItem>
+                        <SelectItem value="continuous">Continuous</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.frequency && <p className="text-red-600 text-sm mt-1.5">{errors.frequency}</p>}
@@ -331,7 +331,7 @@ export default function CreateRequirement() {
                       }}
                     >
                       <SelectTrigger className={`h-11 ${errors.framework_id ? 'border-red-500' : ''}`}>
-                        <SelectValue placeholder="Sélectionner le framework" />
+                        <SelectValue placeholder="Select framework" />
                       </SelectTrigger>
                       <SelectContent>
                         {frameworks.length > 0 ? (
@@ -342,7 +342,7 @@ export default function CreateRequirement() {
                           ))
                         ) : (
                           <SelectItem value="" disabled>
-                            Aucun framework disponible
+                            No frameworks available
                           </SelectItem>
                         )}
                       </SelectContent>
@@ -351,16 +351,16 @@ export default function CreateRequirement() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Processus</label>
+                    <label className="text-sm font-medium">Process</label>
                     <Select
                       value={data.process_id || 'none'}
                       onValueChange={(v) => setData('process_id', v === 'none' ? '' : v)}
                     >
                       <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Sélectionner (optionnel)" />
+                        <SelectValue placeholder="Select (optional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Aucun</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {processes.map((proc) => (
                           <SelectItem key={proc.id} value={proc.id.toString()}>
                             {proc.name}
@@ -375,13 +375,13 @@ export default function CreateRequirement() {
               {/* Context & Details */}
               <div className="space-y-10">
                 <h2 className="text-2xl font-semibold tracking-tight border-b pb-4">
-                  Contexte & Détails
+                  Context & Details
                 </h2>
 
                 <div className="space-y-4">
                   <label className="text-sm font-medium">Description</label>
                   <Textarea
-                    placeholder="Description détaillée de l'exigence, champ d'application, contexte..."
+                    placeholder="Detailed explanation of the requirement, scope, applicability..."
                     value={data.description}
                     onChange={(e) => setData('description', e.target.value)}
                     className="min-h-[140px] resize-y"
@@ -391,7 +391,7 @@ export default function CreateRequirement() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   <div className="space-y-2">
                     <label className="text-sm font-medium flex items-center gap-1.5">
-                      Niveau de conformité <span className="text-red-500 text-base">*</span>
+                      Compliance Level <span className="text-red-500 text-base">*</span>
                     </label>
                     <Select
                       value={data.compliance_level}
@@ -401,12 +401,12 @@ export default function CreateRequirement() {
                       }}
                     >
                       <SelectTrigger className={`h-11 ${errors.compliance_level ? 'border-red-500' : ''}`}>
-                        <SelectValue placeholder="Sélectionner le niveau" />
+                        <SelectValue placeholder="Select level" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Mandatory">Obligatoire</SelectItem>
-                        <SelectItem value="Recommended">Recommandé</SelectItem>
-                        <SelectItem value="Optional">Optionnel</SelectItem>
+                        <SelectItem value="Mandatory">Mandatory</SelectItem>
+                        <SelectItem value="Recommended">Recommended</SelectItem>
+                        <SelectItem value="Optional">Optional</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.compliance_level && (
@@ -415,7 +415,7 @@ export default function CreateRequirement() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Date limite</label>
+                    <label className="text-sm font-medium">Deadline</label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -425,7 +425,7 @@ export default function CreateRequirement() {
                           }`}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {deadlineDate ? format(deadlineDate, 'dd MMM yyyy') : 'Choisir une date'}
+                          {deadlineDate ? format(deadlineDate, 'MMM dd, yyyy') : 'Pick a date'}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
@@ -444,7 +444,7 @@ export default function CreateRequirement() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Date de complétion</label>
+                    <label className="text-sm font-medium">Completion Date</label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -452,7 +452,7 @@ export default function CreateRequirement() {
                           className="w-full h-11 justify-start text-left font-normal"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {completionDate ? format(completionDate, 'dd MMM yyyy') : 'Optionnel'}
+                          {completionDate ? format(completionDate, 'MMM dd, yyyy') : 'Optional'}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
@@ -478,14 +478,14 @@ export default function CreateRequirement() {
                     }))}
                     value={data.tags}
                     onValueChange={(selected: string[]) => setData('tags', selected)}
-                    placeholder="Sélectionner les tags pertinents..."
+                    placeholder="Select relevant tags..."
                   />
                 </div>
 
                 <div className="space-y-4">
-                  <label className="text-sm font-medium">Pièces jointes (URLs)</label>
+                  <label className="text-sm font-medium">Attachments (URLs)</label>
                   <Textarea
-                    placeholder="Coller une ou plusieurs URLs (une par ligne)&#10;Exemples :&#10;https://drive.google.com/...&#10;https://company.sharepoint.com/...&#10;https://example.com/politique.pdf"
+                    placeholder="Paste one or more URLs (one per line)\nExamples:\nhttps://drive.google.com/...\nhttps://company.sharepoint.com/...\nhttps://example.com/policy.pdf"
                     value={data.attachments}
                     onChange={(e) => setData('attachments', e.target.value)}
                     className="min-h-[120px] resize-y"
@@ -499,7 +499,7 @@ export default function CreateRequirement() {
               {/* Actions */}
               <div className="flex justify-end gap-4 pt-12 border-t">
                 <Button type="button" variant="outline" size="lg" asChild>
-                  <Link href="/requirements">Annuler</Link>
+                  <Link href="/requirements">Cancel</Link>
                 </Button>
 
                 <Button
@@ -508,7 +508,7 @@ export default function CreateRequirement() {
                   size="lg"
                   className="min-w-[220px]"
                 >
-                  {processing ? 'Création en cours...' : 'Créer l\'exigence'}
+                  {processing ? 'Creating...' : 'Create Requirement'}
                 </Button>
               </div>
             </form>

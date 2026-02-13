@@ -11,6 +11,8 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\RequirementsExport;
+use Carbon\Carbon;
+
 
 class RequirementController extends Controller
 {
@@ -378,4 +380,57 @@ class RequirementController extends Controller
             'requirements-' . now()->format('Y-m-d-His') . '.xlsx'
         );
     }
+    /**
+ * Afficher l'interface de test pour une exigence spécifique
+ */
+
+   public function getRequirementsForTesting(Request $request)
+{
+    $user = Auth::user();
+    $currentOrgId = $user->current_organization_id;
+
+    $date = $request->query('date'); // date passée en query param
+    $date = $date ? \Carbon\Carbon::parse($date) : \Carbon\Carbon::today();
+
+    $requirements = Requirement::where('organization_id', $currentOrgId)
+        ->where('is_deleted', 0)
+        ->get();
+
+    $toTest = $requirements->filter(function ($req) use ($date) {
+        if (!$req->deadline) return false;
+
+        $deadline = \Carbon\Carbon::parse($req->deadline);
+
+        switch ($req->frequency) {
+            case 'one_time':
+                return $deadline->isSameDay($date);
+            case 'daily':
+                return $deadline->lessThanOrEqualTo($date);
+            case 'weekly':
+                return $deadline->dayOfWeek === $date->dayOfWeek
+                       && $deadline->lessThanOrEqualTo($date);
+            case 'monthly':
+                return $deadline->day === $date->day
+                       && $deadline->lessThanOrEqualTo($date);
+            case 'quarterly':
+                return $deadline->month % 3 === $date->month % 3
+                       && $deadline->day === $date->day
+                       && $deadline->lessThanOrEqualTo($date);
+            case 'yearly':
+                return $deadline->month === $date->month
+                       && $deadline->day === $date->day
+                       && $deadline->lessThanOrEqualTo($date);
+            case 'continuous':
+                return true;
+            default:
+                return false;
+        }
+    });
+
+    
+    return Inertia::render('RequirementTests/Index', [
+        'date' => $date->toDateString(),
+        'requirements' => $toTest->values()
+    ]);}
+
 }

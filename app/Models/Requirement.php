@@ -43,6 +43,8 @@ class Requirement extends Model
     {
         return $this->belongsTo(Process::class);
     }
-
+public function tests()
+{
+    return $this->hasMany(RequirementTest::class);
 }
-
+}

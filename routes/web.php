@@ -119,14 +119,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /*  Route::resource('requirements', RequirementController::class)
          ->only(['index', 'create', 'store', 'update', 'destroy']); */
     Route::get('requirements', [RequirementController::class, 'index'])->name('requirements.index');
-        Route::get('/requirements/export', [RequirementController::class, 'export'])
+     Route::get('/requirements/export', [RequirementController::class, 'export'])
     ->name('requirements.export');
     Route::post('StoreRequirements', [RequirementController::class, 'store'])->name('requirements.store');
     Route::get('requirements/create', [RequirementController::class, 'create'])->name('requirements.create');
+    
+Route::get(
+    'requirements/testing',
+    [RequirementController::class, 'getRequirementsForTesting']
+)->name('requirements.testing');
     Route::get('/requirements/{requirement}', [RequirementController::class, 'show'])->name('requirements.show');
     Route::get('/requirements/{requirement}/edit', [RequirementController::class, 'edit'])->name('requirements.edit');
     Route::put('/requirements/{requirement}', [RequirementController::class, 'update'])->name('requirements.update');
     Route::delete('/requirements/{requirement}', [RequirementController::class, 'destroy'])->name('requirements.destroy');
+
 
 
 });

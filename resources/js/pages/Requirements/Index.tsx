@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Head, Link, router } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { ServerDataTable } from '@/components/server-data-table'
@@ -32,26 +32,25 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  Eye,
-  Pencil,
-  Trash2,
-  MoreHorizontal,
-  Plus,
-  CheckCircle2,
-  FileText,
-  Archive,
-  AlertTriangle,
-  AlertCircle,
   Key,
   BookOpen,
   Layers,
   SignalHigh,
   Building2,
-  ListTodo,
-  Tag,
-  RefreshCw,
+  CheckCircle2,
+  Eye,
+  FileText,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  Archive,
+  AlertTriangle,
   LayoutGrid,
   Table as TableIcon,
+  Tag,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PaginatedData } from '@/types'
@@ -78,43 +77,32 @@ interface Requirement {
 
 interface RequirementsIndexProps {
   requirements: PaginatedData<Requirement>
-  stats?: {
-    total?: number
-    lowCount?: number
-    mediumCount?: number
-    highCount?: number
-    lowPercent?: number
-    mediumPercent?: number
-    highPercent?: number
-  }
 }
 
-export default function RequirementsIndex({ requirements, stats = {} }: RequirementsIndexProps) {
+export default function RequirementsIndex({ requirements }: RequirementsIndexProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [requirementToDelete, setRequirementToDelete] = useState<Requirement | null>(null)
   const [exportLoading, setExportLoading] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table')
 
-  const {
-    total = 0,
-    lowCount = 0,
-    mediumCount = 0,
-    highCount = 0,
-    lowPercent = 0,
-    mediumPercent = 0,
-    highPercent = 0,
-  } = stats
+  // Calcul des stats DYNAMIQUES sur les données filtrées/recherchées
+  const stats = useMemo(() => {
+    const data = requirements.data
+    const total = data.length
+    const lowCount = data.filter(r => r.priority?.toLowerCase() === 'low').length
+    const mediumCount = data.filter(r => r.priority?.toLowerCase() === 'medium').length
+    const highCount = data.filter(r => r.priority?.toLowerCase() === 'high').length
 
-  // Group requirements by status for Kanban view
-  const groupedByStatus = requirements.data.reduce((acc, req) => {
-    const status = (req.status || 'unknown').toLowerCase()
-    if (!acc[status]) acc[status] = []
-    acc[status].push(req)
-    return acc
-  }, {} as Record<string, Requirement[]>)
-
-  // Order of Kanban columns
-  const statusOrder = ['active', 'draft', 'archived']
+    return {
+      total,
+      lowCount,
+      mediumCount,
+      highCount,
+      lowPercent: total > 0 ? Math.round((lowCount / total) * 100) : 0,
+      mediumPercent: total > 0 ? Math.round((mediumCount / total) * 100) : 0,
+      highPercent: total > 0 ? Math.round((highCount / total) * 100) : 0,
+    }
+  }, [requirements.data]) // recalcul à chaque changement de données filtrées
 
   const handleExport = async () => {
     setExportLoading(true)
@@ -122,9 +110,7 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
       const params = new URLSearchParams(window.location.search)
       const response = await fetch(`/requirements/export?${params.toString()}`, {
         method: 'GET',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-        },
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
       })
 
       if (!response.ok) throw new Error('Export failed')
@@ -142,6 +128,18 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
       setExportLoading(false)
     }
   }
+
+  // Group by status for Kanban
+  const groupedByStatus = useMemo(() => {
+    return requirements.data.reduce((acc, req) => {
+      const status = (req.status || 'unknown').toLowerCase()
+      if (!acc[status]) acc[status] = []
+      acc[status].push(req)
+      return acc
+    }, {} as Record<string, Requirement[]>)
+  }, [requirements.data])
+
+  const statusOrder = ['active', 'inactive', 'draft', 'archived']
 
   const statusOptions: FacetedFilterOption[] = [
     { label: 'Active', value: 'active', icon: CheckCircle2 },
@@ -259,36 +257,14 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
       ),
       cell: ({ row }) => {
         const freq = (row.getValue('frequency') as string)?.toLowerCase() || ''
-
         const displayMap: Record<string, { label: string; variant: string }> = {
-          one_time: {
-            label: 'One Time',
-            variant: 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-900/30 dark:text-indigo-300',
-          },
-          daily: {
-            label: 'Daily',
-            variant: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300',
-          },
-          weekly: {
-            label: 'Weekly',
-            variant: 'bg-cyan-100 text-cyan-800 border-cyan-300 dark:bg-cyan-900/30 dark:text-cyan-300',
-          },
-          monthly: {
-            label: 'Monthly',
-            variant: 'bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-900/30 dark:text-violet-300',
-          },
-          quarterly: {
-            label: 'Quarterly',
-            variant: 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300',
-          },
-          yearly: {
-            label: 'Yearly',
-            variant: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300 dark:bg-fuchsia-900/30 dark:text-fuchsia-300',
-          },
-          continuous: {
-            label: 'Continuous',
-            variant: 'bg-teal-100 text-teal-800 border-teal-300 dark:bg-teal-900/30 dark:text-teal-300',
-          },
+          one_time: { label: 'One Time', variant: 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-900/30 dark:text-indigo-300' },
+          daily: { label: 'Daily', variant: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300' },
+          weekly: { label: 'Weekly', variant: 'bg-cyan-100 text-cyan-800 border-cyan-300 dark:bg-cyan-900/30 dark:text-cyan-300' },
+          monthly: { label: 'Monthly', variant: 'bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-900/30 dark:text-violet-300' },
+          quarterly: { label: 'Quarterly', variant: 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300' },
+          yearly: { label: 'Yearly', variant: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300 dark:bg-fuchsia-900/30 dark:text-fuchsia-300' },
+          continuous: { label: 'Continuous', variant: 'bg-teal-100 text-teal-800 border-teal-300 dark:bg-teal-900/30 dark:text-teal-300' },
         }
 
         const info = displayMap[freq] || {
@@ -296,11 +272,7 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
           variant: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
         }
 
-        return (
-          <Badge variant="outline" className={`capitalize ${info.variant}`}>
-            {info.label}
-          </Badge>
-        )
+        return <Badge variant="outline" className={`capitalize ${info.variant}`}>{info.label}</Badge>
       },
     },
     {
@@ -317,6 +289,37 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
       },
     },
     {
+      accessorKey: 'tags',
+      header: ({ column }) => (
+        <div className="flex items-center gap-1.5">
+          <Tag className="h-4 w-4 text-muted-foreground" />
+          <DataTableColumnHeader column={column} title="Tags" />
+        </div>
+      ),
+      cell: ({ row }) => {
+        const tags: string[] = row.original.tags || []
+        return (
+          <div className="flex flex-wrap gap-1 max-w-[200px]">
+            {tags.length === 0 ? (
+              <span className="text-muted-foreground text-xs">—</span>
+            ) : (
+              tags.slice(0, 3).map((tag, i) => (
+                <Badge key={i} variant="secondary" className="text-xs">
+                  {tag}
+                </Badge>
+              ))
+            )}
+            {tags.length > 3 && (
+              <Badge variant="outline" className="text-xs">
+                +{tags.length - 3}
+              </Badge>
+            )}
+          </div>
+        )
+      },
+      enableSorting: false,
+    },
+    {
       id: 'actions',
       cell: ({ row }) => {
         const requirement = row.original
@@ -324,7 +327,6 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -385,7 +387,6 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
               Add Requirement
             </Button>
 
-            {/* View Toggle */}
             <div className="border rounded-md inline-flex bg-muted/40">
               <Button
                 variant={viewMode === 'table' ? 'secondary' : 'ghost'}
@@ -409,15 +410,14 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
           </div>
         </div>
 
-        {/* Statistics Cards */}
+        {/* Statistiques dynamiques (mises à jour avec la recherche/filtres) */}
         <div className="grid gap-4 md:grid-cols-4">
-          {/* Total */}
           <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total</p>
                 <p className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  {total}
+                  {stats.total}
                 </p>
               </div>
               <div className="rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20 p-3 transition-transform group-hover:scale-110">
@@ -425,20 +425,16 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
               </div>
             </div>
             <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ease-out"
-                style={{ width: '100%' }}
-              />
+              <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ease-out w-full" />
             </div>
           </div>
 
-          {/* Low */}
           <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Low</p>
                 <p className="text-4xl font-extrabold text-emerald-700 dark:text-emerald-300">
-                  {lowCount}
+                  {stats.lowCount}
                 </p>
               </div>
               <div className="rounded-full bg-emerald-100/60 dark:bg-emerald-900/30 p-3 transition-transform group-hover:scale-110">
@@ -446,21 +442,17 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
               </div>
             </div>
             <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-emerald-600/80 dark:bg-emerald-500 transition-all duration-1000 ease-out"
-                style={{ width: `${lowPercent}%` }}
-              />
+              <div className="h-full bg-emerald-600/80 dark:bg-emerald-500 transition-all duration-1000 ease-out" style={{ width: `${stats.lowPercent}%` }} />
             </div>
-            <p className="text-xs text-muted-foreground mt-1.5 text-right">{lowPercent}%</p>
+            <p className="text-xs text-muted-foreground mt-1.5 text-right">{stats.lowPercent}%</p>
           </div>
 
-          {/* Medium */}
           <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Medium</p>
                 <p className="text-4xl font-extrabold text-amber-700 dark:text-amber-300">
-                  {mediumCount}
+                  {stats.mediumCount}
                 </p>
               </div>
               <div className="rounded-full bg-amber-100/60 dark:bg-amber-900/30 p-3 transition-transform group-hover:scale-110">
@@ -468,21 +460,17 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
               </div>
             </div>
             <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-amber-600/80 dark:bg-amber-500 transition-all duration-1000 ease-out"
-                style={{ width: `${mediumPercent}%` }}
-              />
+              <div className="h-full bg-amber-600/80 dark:bg-amber-500 transition-all duration-1000 ease-out" style={{ width: `${stats.mediumPercent}%` }} />
             </div>
-            <p className="text-xs text-muted-foreground mt-1.5 text-right">{mediumPercent}%</p>
+            <p className="text-xs text-muted-foreground mt-1.5 text-right">{stats.mediumPercent}%</p>
           </div>
 
-          {/* High */}
           <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">High</p>
                 <p className="text-4xl font-extrabold text-red-700 dark:text-red-300">
-                  {highCount}
+                  {stats.highCount}
                 </p>
               </div>
               <div className="rounded-full bg-red-100/60 dark:bg-red-900/30 p-3 transition-transform group-hover:scale-110">
@@ -490,16 +478,13 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
               </div>
             </div>
             <div className="mt-3 h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-red-600/80 dark:bg-red-500 transition-all duration-1000 ease-out"
-                style={{ width: `${highPercent}%` }}
-              />
+              <div className="h-full bg-red-600/80 dark:bg-red-500 transition-all duration-1000 ease-out" style={{ width: `${stats.highPercent}%` }} />
             </div>
-            <p className="text-xs text-muted-foreground mt-1.5 text-right">{highPercent}%</p>
+            <p className="text-xs text-muted-foreground mt-1.5 text-right">{stats.highPercent}%</p>
           </div>
         </div>
 
-        {/* View Content */}
+        {/* Contenu principal : Table ou Kanban */}
         {viewMode === 'table' ? (
           <ServerDataTable
             columns={columns}
@@ -509,27 +494,16 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
             exportLoading={exportLoading}
             filters={
               <>
-                <DataTableFacetedFilter
-                  filterKey="status"
-                  title="Status"
-                  options={statusOptions}
-                />
-                <DataTableSelectFilter
-                  filterKey="priority"
-                  title="Priority"
-                  placeholder="All priorities"
-                  options={priorityOptions}
-                />
+                <DataTableFacetedFilter filterKey="status" title="Status" options={statusOptions} />
+                <DataTableSelectFilter filterKey="priority" title="Priority" placeholder="All priorities" options={priorityOptions} />
               </>
             }
             initialState={{
-              columnPinning: {
-                right: ['actions'],
-              },
+              columnPinning: { right: ['actions'] },
             }}
           />
         ) : (
-          // Kanban Board View
+          // Kanban View
           <div className="overflow-x-auto pb-6">
             <div className="flex gap-5 min-w-fit">
               {statusOrder.map((statusKey) => {
@@ -542,7 +516,6 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
                     key={statusKey}
                     className="bg-muted/30 rounded-xl border w-[360px] flex flex-col shadow-sm"
                   >
-                    {/* Column Header */}
                     <div className="p-4 border-b bg-background/80 sticky top-0 backdrop-blur-sm z-10 rounded-t-xl">
                       <div className="flex items-center justify-between">
                         <h3 className="font-semibold text-lg">{title}</h3>
@@ -552,11 +525,10 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
                       </div>
                     </div>
 
-                    {/* Cards */}
                     <div className="p-4 flex-1 space-y-4 overflow-y-auto max-h-[65vh]">
                       {items.length === 0 ? (
                         <div className="text-center text-muted-foreground py-12 italic">
-                          Aucune exigence dans cette colonne
+                          No requirements in this column
                         </div>
                       ) : (
                         items.map((req) => (
@@ -601,6 +573,21 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
                                 </Badge>
                               )}
                             </div>
+
+                            {req.tags && req.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-3">
+                                {req.tags.slice(0, 3).map((tag, i) => (
+                                  <Badge key={i} variant="secondary" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                                {req.tags.length > 3 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    +{req.tags.length - 3}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
                           </div>
                         ))
                       )}
@@ -613,22 +600,22 @@ export default function RequirementsIndex({ requirements, stats = {} }: Requirem
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Dialog de suppression */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer l'exigence</AlertDialogTitle>
+            <AlertDialogTitle>Delete Requirement</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer "{requirementToDelete?.title}" ? Cette action est irréversible.
+              Are you sure you want to delete "{requirementToDelete?.title}"? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               className="bg-destructive hover:bg-destructive/90"
             >
-              Supprimer
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
