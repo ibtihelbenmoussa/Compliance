@@ -9,11 +9,10 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\FrameworksExport;
-use Illuminate\Support\Collection;
-
 
 class FrameworkController extends Controller
 {
+
    public function index(Request $request)
 {
     $user = auth()->user();
@@ -21,12 +20,12 @@ class FrameworkController extends Controller
 
     if (!$currentOrgId) {
         return redirect()->route('organizations.select.page')
-            ->with('error', 'Please select an organization first.');
+            ->with('error', 'Veuillez sélectionner une organisation d\'abord.');
     }
 
     $query = Framework::where('is_deleted', 0)
         ->where('organization_id', $currentOrgId)
-        ->with('jurisdiction');
+        ->with('jurisdictions');
 
     if ($request->filled('search')) {
         $search = $request->search;
@@ -55,40 +54,46 @@ class FrameworkController extends Controller
 
     $frameworks = $query->paginate(15)->withQueryString();
 
-    $allTags = Tag::pluck('name', 'id')->toArray();
+    $allTags = Tag::where('is_deleted', 0)
+        ->pluck('name', 'id')
+        ->toArray();
 
-    $frameworks->getCollection()->each(function ($fw) use ($allTags) {
+    $frameworks->getCollection()->transform(function ($fw) use ($allTags) {
+        // Tags
         $tagIds = json_decode($fw->tags ?? '[]', true) ?? [];
         $fw->tags = collect($tagIds)
             ->map(fn($id) => $allTags[$id] ?? null)
             ->filter()
             ->values()
             ->toArray();
+
+        // Juridictions - protection contre null
+        $fw->jurisdictions = $fw->jurisdictions
+            ? $fw->jurisdictions->pluck('name')->toArray()
+            : [];
+
+        return $fw;
     });
 
     return Inertia::render('Frameworks/Index', [
         'frameworks' => $frameworks
     ]);
 }
-
     public function create()
     {
         $user = auth()->user();
         $currentOrgId = $user->current_organization_id;
 
-        $jurisdictions = Jurisdiction::where('is_deleted', 0)
-            ->where('organization_id', $currentOrgId)
-            ->get();
-
-        $tags = Tag::where('is_deleted', 0)
-            ->where('organization_id', $currentOrgId)
-            ->get();
-
         return Inertia::render('Frameworks/Create', [
-            'jurisdictions' => $jurisdictions,
-            'tags' => $tags,
+            'jurisdictions' => Jurisdiction::where('is_deleted', 0)
+                ->where('organization_id', $currentOrgId)
+                ->get(['id', 'name']),
+            'tags' => Tag::where('is_deleted', 0)
+                ->where('organization_id', $currentOrgId)
+                ->get(['id', 'name']),
         ]);
     }
+
 
     public function store(Request $request)
     {
@@ -102,6 +107,9 @@ class FrameworkController extends Controller
             'type'            => 'required|in:standard,regulation,contract,internal_policy',
             'publisher'       => 'nullable|string|max:255',
             'tags'            => 'nullable|array',
+            'tags.*'          => 'exists:tags,id',
+            'jurisdictions'   => 'nullable|array',
+            'jurisdictions.*' => 'exists:jurisdictions,id',
             'scope'           => 'nullable|string',
             'status'          => 'required|in:active,draft,deprecated,archived',
             'release_date'    => 'nullable|date',
@@ -110,10 +118,9 @@ class FrameworkController extends Controller
             'description'     => 'nullable|string',
             'language'        => 'nullable|string',
             'url_reference'   => 'nullable|url',
-            'jurisdiction_id' => 'nullable|exists:jurisdictions,id',
         ]);
 
-        Framework::create([
+        $framework = Framework::create([
             'name'            => $data['name'],
             'code'            => $data['code'],
             'version'         => $data['version'] ?? null,
@@ -129,74 +136,123 @@ class FrameworkController extends Controller
             'url_reference'   => $data['url_reference'] ?? null,
             'organization_id' => $currentOrgId,
             'tags'            => !empty($data['tags']) ? json_encode($data['tags']) : null,
-            'jurisdiction_id' => $data['jurisdiction_id'] ?? null,
         ]);
 
-        return redirect('/frameworks')
-            ->with('success', 'Framework created successfully.');
+        $framework->jurisdictions()->sync($data['jurisdictions'] ?? []);
+
+        return redirect('/frameworks')->with('success', 'Framework created successfully.');
     }
 
-    public function show(Framework $framework)
-    {
-        $user = auth()->user();
-        $currentOrgId = $user->current_organization_id;
 
-        if ($framework->organization_id != $currentOrgId || $framework->is_deleted) {
-            abort(403, 'Unauthorized');
-        }
+   public function show(Framework $framework)
+{
+    $this->authorizeFramework($framework);
 
-        $allTags = Tag::pluck('name', 'id')->toArray();
+    $framework->load('jurisdictions');
 
-        $tagIds = json_decode($framework->tags ?? '[]', true) ?? [];
-        $framework->tags_names = collect($tagIds)
-            ->map(fn($id) => $allTags[$id] ?? null)
-            ->filter()
-            ->values()
-            ->toArray();
+    $allTags = Tag::pluck('name', 'id')->toArray();
 
-        $framework->jurisdiction_name = $framework->jurisdiction?->name ?? null;
+    $tagIds = json_decode($framework->tags ?? '[]', true) ?: [];
 
-        return Inertia::render('Frameworks/Show', [
-            'framework' => $framework
-        ]);
-    }
+    $framework->tags_names = collect($tagIds)
+        ->map(fn($id) => $allTags[$id] ?? null)
+        ->filter()
+        ->values()
+        ->toArray();
+
+    $framework->jurisdictions_names = collect($framework->jurisdictions)
+        ->pluck('name')
+        ->filter()
+        ->values()
+        ->toArray();
+
+    return Inertia::render('Frameworks/Show', [
+        'framework' => $framework
+    ]);
+}
+
+
+/* public function edit(Framework $framework)
+{
+    $user = auth()->user();
+    $currentOrgId = $user->current_organization_id;
+
+    $framework->load('jurisdictions');
+
+    $jurisdictions = Jurisdiction::where('is_deleted', 0)
+        ->where('organization_id', $currentOrgId)
+        ->get(['id', 'name']);
+
+    $tags = Tag::where('is_deleted', 0)
+        ->where('organization_id', $currentOrgId)
+        ->get(['id', 'name']);
+
+    $selectedTagIds = collect(json_decode($framework->tags ?? '[]', true))
+        ->map(fn($id) => (string)$id)
+        ->values();
+
+    $selectedJurisdictionIds = $framework->jurisdictions
+        ? $framework->jurisdictions->pluck('id')->map(fn($id) => (string)$id)->values()
+        : collect(); 
+
+    return Inertia::render('Frameworks/Edit', [
+        'framework' => $framework,
+        'jurisdictions' => $jurisdictions,
+        'tags' => $tags,
+        'selectedTagIds' => $selectedTagIds,
+        'selectedJurisdictionIds' => $selectedJurisdictionIds,
+    ]);
+} */
+
 
     public function edit(Framework $framework)
-    {
-        $user = auth()->user();
-        $currentOrgId = $user->current_organization_id;
-
-        $jurisdictions = Jurisdiction::where('is_deleted', 0)
-            ->where('organization_id', $currentOrgId)
-            ->get(['id', 'name']);
-
-        $tags = Tag::where('is_deleted', 0)
-            ->where('organization_id', $currentOrgId)
-            ->get(['id', 'name']);
-
-        $selectedTagIds = collect(
-            json_decode($framework->tags ?? '[]', true) ?? []
-        )->map(fn($id) => (string) $id)->values();
-
-        return Inertia::render('Frameworks/Edit', [
-            'framework'       => $framework,
-            'jurisdictions'   => $jurisdictions,
-            'tags'            => $tags,
-            'selectedTagIds'  => $selectedTagIds,
-        ]);
-    }
+{
+    $user = auth()->user();
+    $currentOrgId = $user->current_organization_id;
+ 
+    $framework->load('jurisdictions');
+ 
+    $jurisdictions = Jurisdiction::where('is_deleted', 0)
+        ->where('organization_id', $currentOrgId)
+        ->get(['id', 'name']);
+ 
+    $tags = Tag::where('is_deleted', 0)
+        ->where('organization_id', $currentOrgId)
+        ->get(['id', 'name']);
+ 
+  $selectedJurisdictionIds = $framework->jurisdictions
+    ->pluck('id')
+    ->map(fn ($id) => (string) $id)
+    ->toArray();
+ 
+ 
+    $selectedTagIds = collect(json_decode($framework->tags ?? '[]', true))
+        ->map(fn ($id) => (string) $id)
+        ->toArray();
+ 
+    return Inertia::render('Frameworks/Edit', [
+        'framework' => $framework,
+        'jurisdictions' => $jurisdictions,
+        'tags' => $tags,
+        'selectedTagIds' => $selectedTagIds,
+        'selectedJurisdictionIds' => $selectedJurisdictionIds,
+    ]);
+}
 
     public function update(Request $request, Framework $framework)
     {
+        $this->authorizeFramework($framework);
+
         $data = $request->validate([
             'code'            => 'required|unique:frameworks,code,' . $framework->id,
             'name'            => 'required|string|max:255',
             'version'         => 'nullable|string|max:255',
             'type'            => 'required|in:standard,regulation,contract,internal_policy',
             'publisher'       => 'nullable|string|max:255',
-            'jurisdiction_id' => 'nullable|exists:jurisdictions,id',
             'tags'            => 'nullable|array',
-            'tags.*'          => 'string',
+            'tags.*'          => 'exists:tags,id',
+            'jurisdictions'   => 'nullable|array',
+            'jurisdictions.*' => 'exists:jurisdictions,id',
             'scope'           => 'nullable|string',
             'status'          => 'required|in:active,draft,deprecated,archived',
             'release_date'    => 'nullable|date',
@@ -207,88 +263,54 @@ class FrameworkController extends Controller
             'url_reference'   => 'nullable|url',
         ]);
 
-        if (isset($data['tags'])) {
-            $data['tags'] = json_encode($data['tags']);
-        }
+        $framework->update([
+            'name'           => $data['name'],
+            'code'           => $data['code'],
+            'version'        => $data['version'] ?? null,
+            'type'           => $data['type'],
+            'publisher'      => $data['publisher'] ?? null,
+            'scope'          => $data['scope'] ?? null,
+            'status'         => $data['status'],
+            'release_date'   => $data['release_date'] ?? null,
+            'effective_date' => $data['effective_date'] ?? null,
+            'retired_date'   => $data['retired_date'] ?? null,
+            'description'    => $data['description'] ?? null,
+            'language'       => $data['language'] ?? null,
+            'url_reference'  => $data['url_reference'] ?? null,
+            'tags'           => !empty($data['tags']) ? json_encode($data['tags']) : null,
+        ]);
 
-        $framework->update($data);
+        $framework->jurisdictions()->sync($data['jurisdictions'] ?? []);
 
-        return redirect('/frameworks')
-            ->with('success', 'Framework updated successfully.');
+        return redirect('/frameworks')->with('success', 'Framework updated successfully.');
     }
 
     public function destroy(Framework $framework)
     {
-        $framework->is_deleted = 1;
-        $framework->save();
+        $this->authorizeFramework($framework);
+        $framework->update(['is_deleted' => 1]);
 
-        return redirect('/frameworks')
-            ->with('success', 'Framework deleted successfully.');
+        return redirect('/frameworks')->with('success', 'Framework deleted successfully.');
     }
 
-    /**
-     * Export filtered frameworks to Excel
-     */
-  public function export(Request $request)
-{
-    $user = auth()->user();
-    $currentOrgId = $user->current_organization_id;
+    public function export()
+    {
+        $frameworks = Framework::where('is_deleted', 0)
+            ->with(['jurisdictions'])
+            ->get();
 
-    if (!$currentOrgId) {
-        abort(403, 'Please select an organization first.');
+        return Excel::download(
+            new FrameworksExport($frameworks),
+            'frameworks-' . now()->format('Y-m-d-His') . '.xlsx'
+        );
     }
 
-    $query = Framework::where('is_deleted', 0)
-        ->where('organization_id', $currentOrgId)
-        ->with('jurisdiction');
 
-    // Search filter (from ?search=...)
-    if ($request->filled('search')) {
-        $search = $request->search;
-        $query->where(function ($q) use ($search) {
-            $q->where('name', 'like', "%{$search}%")
-              ->orWhere('code', 'like', "%{$search}%");
-        });
+    private function authorizeFramework($framework)
+    {
+        $user = auth()->user();
+        if ($framework->organization_id != $user->current_organization_id || $framework->is_deleted) {
+            abort(403, 'Unauthorized');
+        }
     }
-
-    // Status filter (filter[status]=active)
-    if ($request->filled('filter.status')) {
-        $query->where('status', $request->input('filter.status'));
-    }
-
-    // Type filter (filter[type]=regulation)
-    if ($request->filled('filter.type') && $request->input('filter.type') !== 'all') {
-        $query->where('type', $request->input('filter.type'));
-    }
-
-    // Sorting (sort=name or sort=-created_at)
-    if ($request->filled('sort')) {
-        $sort = $request->sort;
-        $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
-        $column = ltrim($sort, '-');
-        $query->orderBy($column, $direction);
-    } else {
-        $query->orderBy('created_at', 'desc');
-    }
-
-    $frameworks = $query->get();
-
-    // Transform tags (exactly like in index())
-    $allTags = Tag::pluck('name', 'id')->toArray();
-
-    $frameworks->each(function ($fw) use ($allTags) {
-        $tagIds = json_decode($fw->tags ?? '[]', true) ?? [];
-        $fw->tags_names = collect($tagIds)
-            ->map(fn($id) => $allTags[$id] ?? null)
-            ->filter()
-            ->values()
-            ->toArray();
-    });
-
-    return Excel::download(
-        new FrameworksExport($frameworks),
-        'frameworks-' . now()->format('Y-m-d-His') . '.xlsx'
-    );
-}
-
 }

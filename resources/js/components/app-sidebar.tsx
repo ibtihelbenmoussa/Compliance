@@ -128,7 +128,7 @@ const data = {
 },
 {
   title: 'Requirement tests',
-  url: '/requirements/testing',
+  url: '/req-testing',
 },
     ],
 },  

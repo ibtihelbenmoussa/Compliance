@@ -22,7 +22,9 @@ class JurisdictionController extends Controller
             ->get();
     }
  
-    /** CREATE */
+    /** =========================
+     *  CREATE
+     * ========================= */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -41,7 +43,9 @@ class JurisdictionController extends Controller
         ]);
     }
  
-    /** UPDATE */
+    /** =========================
+     *  UPDATE
+     * ========================= */
     public function update(Request $request, Jurisdiction $jurisdiction)
     {
         if ($jurisdiction->organization_id !== $this->orgId()) {
@@ -49,7 +53,10 @@ class JurisdictionController extends Controller
         }
  
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:jurisdictions,name,' . $jurisdiction->id . ',id,organization_id,' . $this->orgId(),
+            'name' => 'required|string|max:255|unique:jurisdictions,name,' 
+                . $jurisdiction->id 
+                . ',id,organization_id,' 
+                . $this->orgId(),
         ]);
  
         $jurisdiction->update([
@@ -62,15 +69,18 @@ class JurisdictionController extends Controller
         ]);
     }
  
-    /** DELETE */
+    /** =========================
+     *  DELETE
+     * ========================= */
     public function destroy(Jurisdiction $jurisdiction)
     {
         if ($jurisdiction->organization_id !== $this->orgId()) {
             abort(403);
         }
  
+        // ✅ Vérifier dans JSON column
         $used = Framework::where('is_deleted', 0)
-            ->where('jurisdiction_id', $jurisdiction->id)
+            ->whereJsonContains('jurisdictions', (int) $jurisdiction->id)
             ->exists();
  
         if ($used) {

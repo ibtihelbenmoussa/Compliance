@@ -125,7 +125,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('requirements/create', [RequirementController::class, 'create'])->name('requirements.create');
     
 Route::get(
-    'requirements/testing',
+    'req-testing',
     [RequirementController::class, 'getRequirementsForTesting']
 )->name('requirements.testing');
     Route::get('/requirements/{requirement}', [RequirementController::class, 'show'])->name('requirements.show');

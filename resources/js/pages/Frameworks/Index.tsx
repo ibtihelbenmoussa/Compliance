@@ -68,7 +68,7 @@ export interface Framework {
   version?: string | null
   type: string
   publisher?: string | null
-  jurisdiction: Jurisdiction | null
+  jurisdictions: Jurisdiction[] | null
   tags?: string[]
   status: string
   updated_at?: string | null
@@ -111,7 +111,6 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
     }
   }
 
-  // Group frameworks by status for Kanban view
   const groupedByStatus = frameworks.data.reduce((acc, fw) => {
     const status = (fw.status || 'unknown').toLowerCase()
     if (!acc[status]) acc[status] = []
@@ -200,15 +199,29 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
       cell: ({ row }) => row.getValue('publisher') ?? '—',
     },
     {
-      accessorKey: 'jurisdiction.name',
+      id: 'jurisdictions',
       header: ({ column }) => (
         <div className="flex items-center gap-1.5">
           <Globe className="h-4 w-4 text-muted-foreground" />
-          <DataTableColumnHeader column={column} title="Jurisdiction" />
+          <DataTableColumnHeader column={column} title="Jurisdictions" />
         </div>
       ),
-      cell: ({ row }) => row.original.jurisdiction?.name ?? '—',
-    },
+      accessorFn: (row) => row.jurisdictions || [],
+      cell: ({ getValue }) => {
+        const jurisdictions = getValue() as Jurisdiction[]
+        if (!jurisdictions.length) return <span>—</span>
+        return (
+          <div className="flex flex-wrap gap-1">
+            {jurisdictions.map((j, i) => (
+              <Badge key={i} variant="secondary" className="text-xs">
+                {j.name}
+              </Badge>
+            ))}
+          </div>
+        )
+      },
+    }
+    ,
     {
       accessorKey: 'status',
       header: ({ column }) => (
@@ -522,10 +535,16 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                                 {fw.type.replace('_', ' ')}
                               </Badge>
 
-                              {fw.jurisdiction && (
-                                <Badge variant="outline" className="text-xs">
-                                  {fw.jurisdiction.name}
-                                </Badge>
+                              {fw.jurisdictions?.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {fw.jurisdictions.map((j, i) => (
+                                    <Badge key={i} variant="outline" className="text-xs">
+                                      {j.name}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span>—</span>
                               )}
 
                               {fw.publisher && (

@@ -10,7 +10,9 @@ return new class extends Migration
     {
         Schema::create('frameworks', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->bigInteger('organization_id');
+
+            $table->unsignedBigInteger('organization_id');
+
             $table->string('code')->unique();
             $table->string('name');
             $table->string('version')->nullable();
@@ -23,7 +25,6 @@ return new class extends Migration
             ]);
 
             $table->string('publisher')->nullable();
-
             $table->text('scope')->nullable();
 
             $table->enum('status', [
@@ -40,12 +41,14 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->string('language')->nullable();
             $table->text('url_reference')->nullable();
-            $table->text('tags')->nullable();
-            $table->integer('is_deleted')->default(0);
-           $table->integer('jurisdiction_id');
 
+            // ✅ Tags multiple
+            $table->json('tags')->nullable();
 
-          
+            // ✅ Jurisdictions multiple
+            $table->json('jurisdictions')->nullable();
+
+            $table->boolean('is_deleted')->default(false);
 
             $table->timestamps();
         });

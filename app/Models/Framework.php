@@ -23,10 +23,14 @@ class Framework extends Model
         return $this->belongsTo(Tag::class);
     }
 
-    public function jurisdiction()
-    {
-        return $this->belongsTo(Jurisdiction::class);
-    }
+ public function jurisdictions()
+{
+    return $this->belongsToMany(Jurisdiction::class, 'framework_jurisdiction')
+    ->withTimestamps();
+
+}
+
+
 
 
 
