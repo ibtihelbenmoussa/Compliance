@@ -13,7 +13,6 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\RequirementsExport;
 use Carbon\Carbon;
 
-
 class RequirementController extends Controller
 {
     /**
@@ -68,7 +67,7 @@ class RequirementController extends Controller
         // Pagination
         $requirements = $query->paginate(15)->withQueryString();
 
-        // Statistiques par priorité
+        // Statistiques par priorité (sur toutes les exigences, pas seulement la page paginée)
         $allForStats = Requirement::where('organization_id', $currentOrgId)
             ->where('is_deleted', 0)
             ->get(['priority']);
@@ -82,7 +81,7 @@ class RequirementController extends Controller
         $mediumPercent = $total > 0 ? round(($mediumCount / $total) * 100) : 0;
         $highPercent   = $total > 0 ? round(($highCount / $total) * 100) : 0;
 
-        // Transformation des tags
+        // Transformation des tags pour l'affichage
         $allTags = Tag::pluck('name', 'id')->toArray();
 
         $requirementsTransformed = $requirements->getCollection()->map(function ($req) use ($allTags) {
@@ -254,6 +253,9 @@ class RequirementController extends Controller
         ]);
     }
 
+    /**
+     * Update the requirement (clé : validation partielle pour permettre les mises à jour depuis Kanban)
+     */
     public function update(Request $request, Requirement $requirement)
     {
         $user = Auth::user();
@@ -263,45 +265,37 @@ class RequirementController extends Controller
             abort(403, 'Unauthorized');
         }
 
+        // Validation partielle : champs requis seulement s'ils sont envoyés
         $validated = $request->validate([
-            'code'             => 'required|string|max:255|unique:requirements,code,' . $requirement->id,
-            'title'            => 'required|string|max:255',
+            'code'             => 'sometimes|required|string|max:255|unique:requirements,code,' . $requirement->id,
+            'title'            => 'sometimes|required|string|max:255',
             'description'      => 'nullable|string',
-            'type'             => 'required|in:regulatory,internal,contractual',
-            'status'           => 'required|in:active,inactive,draft,archived',
-            'priority'         => 'required|in:low,medium,high',
-            'frequency'        => 'required|in:one_time,daily,weekly,monthly,quarterly,yearly,continuous',
-            'framework_id'     => 'required|exists:frameworks,id',
-            'process_id'       => 'nullable|exists:processes,id',
-            'owner_id'         => 'nullable|string|max:255',
-            'tags'             => 'nullable|array',
+            'type'             => 'sometimes|required|in:regulatory,internal,contractual',
+            'status'           => 'sometimes|required|in:active,inactive,draft,archived',
+            'priority'         => 'sometimes|required|in:low,medium,high',
+            'frequency'        => 'sometimes|required|in:one_time,daily,weekly,monthly,quarterly,yearly,continuous',
+            'framework_id'     => 'sometimes|required|exists:frameworks,id',
+            'process_id'       => 'sometimes|nullable|exists:processes,id',
+            'owner_id'         => 'sometimes|nullable|string|max:255',
+            'tags'             => 'sometimes|nullable|array',
             'tags.*'           => 'string',
-            'deadline'         => 'nullable|date',
-            'completion_date'  => 'nullable|date',
-            'compliance_level' => 'required|in:Mandatory,Recommended,Optional',
-            'attachments'      => 'nullable|string',
+            'deadline'         => 'sometimes|nullable|date',
+            'completion_date'  => 'sometimes|nullable|date',
+            'compliance_level' => 'sometimes|required|in:Mandatory,Recommended,Optional',
+            'attachments'      => 'sometimes|nullable|string',
         ]);
 
-        $requirement->update([
-            'code'             => $validated['code'],
-            'title'            => $validated['title'],
-            'description'      => $validated['description'] ?? null,
-            'type'             => $validated['type'],
-            'tags'             => json_encode($validated['tags'] ?? []),
-            'status'           => $validated['status'],
-            'priority'         => $validated['priority'],
-            'frequency'        => $validated['frequency'],
-            'framework_id'     => $validated['framework_id'],
-            'process_id'       => $validated['process_id'] ?? null,
-            'owner_id'         => $validated['owner_id'] ?? $user->id,
-            'deadline'         => $validated['deadline'] ?? null,
-            'completion_date'  => $validated['completion_date'] ?? null,
-            'compliance_level' => $validated['compliance_level'],
-            'attachments'      => $validated['attachments'] ?? null,
-        ]);
+        // Mise à jour uniquement des champs envoyés
+        $requirement->update($validated);
 
-        return redirect('/requirements')
-            ->with('success', 'Requirement updated successfully.');
+        // Gestion spéciale des tags si envoyés
+        if ($request->has('tags')) {
+            $requirement->tags = !empty($validated['tags']) ? json_encode($validated['tags']) : null;
+            $requirement->saveQuietly(); // save sans toucher updated_at
+        }
+
+        // Retour Inertia-friendly (back pour conserver filtres/scroll/position)
+        return back()->with('success', 'Requirement updated successfully.');
     }
 
     public function destroy(Requirement $requirement)
@@ -363,7 +357,7 @@ class RequirementController extends Controller
 
         $requirements = $query->get();
 
-        // Transformation des tags (comme dans index)
+        // Transformation des tags
         $allTags = Tag::pluck('name', 'id')->toArray();
 
         $requirements->each(function ($req) use ($allTags) {
@@ -380,57 +374,59 @@ class RequirementController extends Controller
             'requirements-' . now()->format('Y-m-d-His') . '.xlsx'
         );
     }
+
     /**
- * Afficher l'interface de test pour une exigence spécifique
- */
+     * Afficher l'interface de test pour les exigences
+     */
+    public function getRequirementsForTesting(Request $request)
+    {
+        $user = Auth::user();
+        $currentOrgId = $user->current_organization_id;
 
-   public function getRequirementsForTesting(Request $request)
-{
-    $user = Auth::user();
-    $currentOrgId = $user->current_organization_id;
+        $date = $request->query('date')
+            ? Carbon::parse($request->query('date'))
+            : Carbon::today();
 
-    $date = $request->query('date'); // date passée en query param
-    $date = $date ? \Carbon\Carbon::parse($date) : \Carbon\Carbon::today();
+        $requirements = Requirement::where('organization_id', $currentOrgId)
+            ->where('is_deleted', 0)
+            ->get();
 
-    $requirements = Requirement::where('organization_id', $currentOrgId)
-        ->where('is_deleted', 0)
-        ->get();
-
-    $toTest = $requirements->filter(function ($req) use ($date) {
-        if (!$req->deadline) return false;
-
-        $deadline = \Carbon\Carbon::parse($req->deadline);
-
-        switch ($req->frequency) {
-            case 'one_time':
-                return $deadline->isSameDay($date);
-            case 'daily':
-                return $deadline->lessThanOrEqualTo($date);
-            case 'weekly':
-                return $deadline->dayOfWeek === $date->dayOfWeek
-                       && $deadline->lessThanOrEqualTo($date);
-            case 'monthly':
-                return $deadline->day === $date->day
-                       && $deadline->lessThanOrEqualTo($date);
-            case 'quarterly':
-                return $deadline->month % 3 === $date->month % 3
-                       && $deadline->day === $date->day
-                       && $deadline->lessThanOrEqualTo($date);
-            case 'yearly':
-                return $deadline->month === $date->month
-                       && $deadline->day === $date->day
-                       && $deadline->lessThanOrEqualTo($date);
-            case 'continuous':
-                return true;
-            default:
+        $toTest = $requirements->filter(function ($req) use ($date) {
+            if (!$req->deadline) {
                 return false;
-        }
-    });
+            }
 
-    
-    return Inertia::render('RequirementTests/Index', [
-        'date' => $date->toDateString(),
-        'requirements' => $toTest->values()
-    ]);}
+            $deadline = Carbon::parse($req->deadline);
 
+            switch ($req->frequency) {
+                case 'one_time':
+                    return $deadline->isSameDay($date);
+                case 'daily':
+                    return $deadline->lessThanOrEqualTo($date);
+                case 'weekly':
+                    return $deadline->dayOfWeek === $date->dayOfWeek
+                        && $deadline->lessThanOrEqualTo($date);
+                case 'monthly':
+                    return $deadline->day === $date->day
+                        && $deadline->lessThanOrEqualTo($date);
+                case 'quarterly':
+                    return $deadline->month % 3 === $date->month % 3
+                        && $deadline->day === $date->day
+                        && $deadline->lessThanOrEqualTo($date);
+                case 'yearly':
+                    return $deadline->month === $date->month
+                        && $deadline->day === $date->day
+                        && $deadline->lessThanOrEqualTo($date);
+                case 'continuous':
+                    return true;
+                default:
+                    return false;
+            }
+        });
+
+        return Inertia::render('RequirementTests/Index', [
+            'date' => $date->toDateString(),
+            'requirements' => $toTest->values()
+        ]);
+    }
 }

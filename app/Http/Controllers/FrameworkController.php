@@ -205,40 +205,59 @@ class FrameworkController extends Controller
 } */
 
 
-    public function edit(Framework $framework)
+public function edit(Framework $framework)
 {
+    $this->authorizeFramework($framework);
+
     $user = auth()->user();
     $currentOrgId = $user->current_organization_id;
- 
+
+    // 1. Charger explicitement la relation (très important)
     $framework->load('jurisdictions');
- 
+
+    // 2. Récupérer les listes disponibles pour le select
     $jurisdictions = Jurisdiction::where('is_deleted', 0)
         ->where('organization_id', $currentOrgId)
         ->get(['id', 'name']);
- 
+
     $tags = Tag::where('is_deleted', 0)
         ->where('organization_id', $currentOrgId)
         ->get(['id', 'name']);
- 
-  $selectedJurisdictionIds = $framework->jurisdictions
-    ->pluck('id')
-    ->map(fn ($id) => (string) $id)
-    ->toArray();
- 
- 
-    $selectedTagIds = collect(json_decode($framework->tags ?? '[]', true))
-        ->map(fn ($id) => (string) $id)
+
+    // 3. IDs des juridictions déjà attachées (sécurisé contre null)
+    $selectedJurisdictionIds = collect($framework->jurisdictions)
+        ->pluck('id')
+        ->map(fn($id) => (string) $id)
+        ->values()
         ->toArray();
- 
+
+    $selectedTagIds = collect(json_decode($framework->tags ?? '[]', true) ?: [])
+        ->map(fn($id) => (string) $id)
+        ->values()
+        ->toArray();
+
+   
+/*     dd([
+        'framework_id'                    => $framework->id,
+        'framework_tags_json_raw'         => $framework->tags,
+        'selectedTagIds'                  => $selectedTagIds,
+        'framework_jurisdictions_count'   => $framework->jurisdictions?->count() ?? 0,
+        'selectedJurisdictionIds'         => $selectedJurisdictionIds,
+        'jurisdictions_from_pivot_direct' => \DB::table('framework_jurisdiction')
+            ->where('framework_id', $framework->id)
+            ->pluck('jurisdiction_id')
+            ->toArray(),
+    ]); 
+     */
+
     return Inertia::render('Frameworks/Edit', [
-        'framework' => $framework,
-        'jurisdictions' => $jurisdictions,
-        'tags' => $tags,
-        'selectedTagIds' => $selectedTagIds,
+        'framework'               => $framework,
+        'jurisdictions'           => $jurisdictions,
+        'tags'                    => $tags,
+        'selectedTagIds'          => $selectedTagIds,
         'selectedJurisdictionIds' => $selectedJurisdictionIds,
     ]);
 }
-
     public function update(Request $request, Framework $framework)
     {
         $this->authorizeFramework($framework);

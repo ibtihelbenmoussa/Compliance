@@ -51,9 +51,20 @@ import {
   Tag,
   RefreshCw,
   AlertCircle,
+  GripVertical,
 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PaginatedData } from '@/types'
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  type DropResult,
+  type DroppableProvided,
+  type DroppableStateSnapshot,
+  type DraggableProvided,
+  type DraggableStateSnapshot,
+} from '@hello-pangea/dnd'
 
 interface Requirement {
   id: number
@@ -85,7 +96,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
   const [exportLoading, setExportLoading] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table')
 
-  // Calcul des stats DYNAMIQUES sur les données filtrées/recherchées
+  // Statistiques dynamiques
   const stats = useMemo(() => {
     const data = requirements.data
     const total = data.length
@@ -102,7 +113,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
       mediumPercent: total > 0 ? Math.round((mediumCount / total) * 100) : 0,
       highPercent: total > 0 ? Math.round((highCount / total) * 100) : 0,
     }
-  }, [requirements.data]) // recalcul à chaque changement de données filtrées
+  }, [requirements.data])
 
   const handleExport = async () => {
     setExportLoading(true)
@@ -129,17 +140,16 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
     }
   }
 
-  // Group by status for Kanban
   const groupedByStatus = useMemo(() => {
     return requirements.data.reduce((acc, req) => {
       const status = (req.status || 'unknown').toLowerCase()
-      if (!acc[status]) acc[status] = []
+      acc[status] = acc[status] || []
       acc[status].push(req)
       return acc
     }, {} as Record<string, Requirement[]>)
   }, [requirements.data])
 
-  const statusOrder = ['active', 'inactive', 'draft', 'archived']
+  const statusOrder = ['active', 'inactive', 'draft', 'archived'] as const
 
   const statusOptions: FacetedFilterOption[] = [
     { label: 'Active', value: 'active', icon: CheckCircle2 },
@@ -369,12 +379,34 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
     }
   }
 
+  const onDragEnd = (result: DropResult) => {
+    const { source, destination, draggableId } = result
+
+    if (!destination) return
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return
+
+    const requirementId = Number(draggableId)
+    const newStatus = destination.droppableId
+
+  
+    router.put(`/requirements/${requirementId}`, { status: newStatus }, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => {
+       
+      },
+      onError: (errors) => {
+        console.error('Failed to move requirement:', errors)
+      },
+    })
+  }
+
   return (
     <AppLayout>
       <Head title="Requirements" />
 
       <div className="space-y-6 p-6">
-        {/* Header + View Toggle */}
+        {/* En-tête + switch vue */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Requirements</h1>
@@ -410,7 +442,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
           </div>
         </div>
 
-        {/* Statistiques dynamiques (mises à jour avec la recherche/filtres) */}
+        {/* Cartes statistiques */}
         <div className="grid gap-4 md:grid-cols-4">
           <div className="rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] group relative overflow-hidden">
             <div className="flex items-center justify-between">
@@ -484,7 +516,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
           </div>
         </div>
 
-        {/* Contenu principal : Table ou Kanban */}
+        {/* Contenu principal */}
         {viewMode === 'table' ? (
           <ServerDataTable
             columns={columns}
@@ -503,104 +535,132 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
             }}
           />
         ) : (
-          // Kanban View
-          <div className="overflow-x-auto pb-6">
-            <div className="flex gap-5 min-w-fit">
-              {statusOrder.map((statusKey) => {
-                const items = groupedByStatus[statusKey] || []
-                const title = statusKey.charAt(0).toUpperCase() + statusKey.slice(1)
-                const count = items.length
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div className="overflow-x-auto pb-6">
+              <div className="flex gap-6 min-w-fit">
+                {statusOrder.map((statusKey) => {
+                  const items = groupedByStatus[statusKey] || []
+                  const title = statusKey.charAt(0).toUpperCase() + statusKey.slice(1)
+                  const count = items.length
 
-                return (
-                  <div
-                    key={statusKey}
-                    className="bg-muted/30 rounded-xl border w-[360px] flex flex-col shadow-sm"
-                  >
-                    <div className="p-4 border-b bg-background/80 sticky top-0 backdrop-blur-sm z-10 rounded-t-xl">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-lg">{title}</h3>
-                        <Badge variant="secondary" className="text-sm">
-                          {count}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <div className="p-4 flex-1 space-y-4 overflow-y-auto max-h-[65vh]">
-                      {items.length === 0 ? (
-                        <div className="text-center text-muted-foreground py-12 italic">
-                          No requirements in this column
-                        </div>
-                      ) : (
-                        items.map((req) => (
-                          <div
-                            key={req.id}
-                            className="bg-card border rounded-lg p-4 shadow hover:shadow-md transition-all cursor-pointer group"
-                            onClick={() => router.visit(`/requirements/${req.id}`)}
-                          >
-                            <div className="font-medium mb-1.5 group-hover:underline">
-                              {req.code} — {req.title}
-                            </div>
-
-                            {req.description && (
-                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                                {req.description}
-                              </p>
-                            )}
-
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <Badge
-                                variant="outline"
-                                className={`text-xs ${
-                                  req.priority === 'high'
-                                    ? 'border-red-400 text-red-600'
-                                    : req.priority === 'medium'
-                                    ? 'border-amber-400 text-amber-600'
-                                    : 'border-green-400 text-green-600'
-                                }`}
-                              >
-                                {req.priority?.toUpperCase()}
+                  return (
+                    <Droppable droppableId={statusKey} key={statusKey}>
+                      {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`bg-muted/30 rounded-xl border w-[380px] flex flex-col shadow-sm min-h-[500px]
+                            ${snapshot.isDraggingOver ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}
+                        >
+                          <div className="p-4 border-b bg-background/80 sticky top-0 backdrop-blur-sm z-10 rounded-t-xl">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-semibold text-lg">{title}</h3>
+                              <Badge variant="secondary" className="text-sm">
+                                {count}
                               </Badge>
-
-                              {req.frequency && (
-                                <Badge variant="outline" className="text-xs">
-                                  {req.frequency.replace('_', ' ')}
-                                </Badge>
-                              )}
-
-                              {req.framework && (
-                                <Badge variant="outline" className="text-xs">
-                                  {req.framework.code}
-                                </Badge>
-                              )}
                             </div>
-
-                            {req.tags && req.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-3">
-                                {req.tags.slice(0, 3).map((tag, i) => (
-                                  <Badge key={i} variant="secondary" className="text-xs">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                                {req.tags.length > 3 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    +{req.tags.length - 3}
-                                  </Badge>
-                                )}
-                              </div>
-                            )}
                           </div>
-                        ))
+
+                          <div className="p-4 flex-1 space-y-4 overflow-y-auto">
+                            {items.length === 0 ? (
+                              <div className="text-center text-muted-foreground py-12 italic">
+                                No requirements in this column
+                              </div>
+                            ) : (
+                              items.map((req, index) => (
+                                <Draggable
+                                  key={req.id}
+                                  draggableId={String(req.id)}
+                                  index={index}
+                                >
+                                  {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      className={`bg-card border rounded-lg p-4 shadow hover:shadow-md transition-all
+                                        ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-primary/60 scale-[1.02] rotate-[0.5deg]' : ''}`}
+                                    >
+                                      <div className="flex items-start gap-3">
+                                        <div
+                                          {...provided.dragHandleProps}
+                                          className="mt-1 cursor-grab active:cursor-grabbing"
+                                        >
+                                          <GripVertical className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                                        </div>
+
+                                        <div className="flex-1 min-w-0">
+                                          <div className="font-medium mb-1.5">
+                                            {req.code} — {req.title}
+                                          </div>
+
+                                          {req.description && (
+                                            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                                              {req.description}
+                                            </p>
+                                          )}
+
+                                          <div className="flex flex-wrap gap-2 mt-2">
+                                            <Badge
+                                              variant="outline"
+                                              className={`text-xs px-2.5 py-0.5 ${
+                                                req.priority?.toLowerCase() === 'high'
+                                                  ? 'border-red-400 text-red-700 bg-red-50/50'
+                                                  : req.priority?.toLowerCase() === 'medium'
+                                                  ? 'border-amber-400 text-amber-700 bg-amber-50/50'
+                                                  : 'border-green-400 text-green-700 bg-green-50/50'
+                                              }`}
+                                            >
+                                              {req.priority?.toUpperCase() || '—'}
+                                            </Badge>
+
+                                            {req.frequency && (
+                                              <Badge variant="outline" className="text-xs px-2.5 py-0.5">
+                                                {req.frequency.replace('_', ' ')}
+                                              </Badge>
+                                            )}
+
+                                            {req.framework && (
+                                              <Badge variant="outline" className="text-xs px-2.5 py-0.5">
+                                                {req.framework.code}
+                                              </Badge>
+                                            )}
+                                          </div>
+
+                                          {req.tags && req.tags.length > 0 && (
+                                            <div className="flex flex-wrap gap-1.5 mt-3">
+                                              {req.tags.slice(0, 3).map((tag, i) => (
+                                                <Badge key={i} variant="secondary" className="text-xs">
+                                                  {tag}
+                                                </Badge>
+                                              ))}
+                                              {req.tags.length > 3 && (
+                                                <Badge variant="outline" className="text-xs">
+                                                  +{req.tags.length - 3}
+                                                </Badge>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </Draggable>
+                              ))
+                            )}
+                            {provided.placeholder}
+                          </div>
+                        </div>
                       )}
-                    </div>
-                  </div>
-                )
-              })}
+                    </Droppable>
+                  )
+                })}
+              </div>
             </div>
-          </div>
+          </DragDropContext>
         )}
       </div>
 
-      {/* Dialog de suppression */}
+      {/* Dialogue de suppression */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

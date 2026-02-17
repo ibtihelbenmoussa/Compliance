@@ -1,9 +1,9 @@
-import AppLogo from '@/components/app-logo';
-import { GlobalSearch } from '@/components/global-search';
-import { NavMain } from '@/components/nav-main';
-import { NavUser } from '@/components/nav-user';
-import { OrganizationSwitcher } from '@/components/organization-switcher';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import AppLogo from '@/components/app-logo'
+import { GlobalSearch } from '@/components/global-search'
+import { NavMain } from '@/components/nav-main'
+import { NavUser } from '@/components/nav-user'
+import { OrganizationSwitcher } from '@/components/organization-switcher'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
     Sidebar,
     SidebarContent,
@@ -14,54 +14,36 @@ import {
     SidebarMenuItem,
     SidebarRail,
     useSidebar,
-} from '@/components/ui/sidebar';
-import { Link } from '@inertiajs/react';
+} from '@/components/ui/sidebar'
+import { Link } from '@inertiajs/react'
 import {
     AlertTriangle,
     Briefcase,
     LayoutDashboard,
     Network,
     Search,
-    Settings,
     PackageCheck,
-} from 'lucide-react';
-import type React from 'react';
-import { useState } from 'react';
+} from 'lucide-react'
+import type React from 'react'
+import { useState } from 'react'
 
-// This is sample data.
 const data = {
     navMain: [
         {
             title: 'Dashboard',
             url: '/dashboard',
             icon: LayoutDashboard,
-            isActive: true,
         },
         {
             title: 'Audit Universe',
             url: '/audit-universe',
             icon: Network,
             items: [
-                {
-                    title: 'Overview',
-                    url: '/overview',
-                },
-                {
-                    title: 'Business Units',
-                    url: '/business-units',
-                },
-                {
-                    title: 'Macro Processes',
-                    url: '/macro-processes',
-                },
-                {
-                    title: 'Processes',
-                    url: '/processes',
-                },
-                {
-                    title: 'BPMN Diagrams',
-                    url: '/bpmn',
-                },
+                { title: 'Overview', url: '/overview' },
+                { title: 'Business Units', url: '/business-units' },
+                { title: 'Macro Processes', url: '/macro-processes' },
+                { title: 'Processes', url: '/processes' },
+                { title: 'BPMN Diagrams', url: '/bpmn' },
             ],
         },
         {
@@ -69,18 +51,9 @@ const data = {
             url: '/risks',
             icon: AlertTriangle,
             items: [
-                {
-                    title: 'Risks',
-                    url: '/risks',
-                },
-                {
-                    title: 'Controls',
-                    url: '/controls',
-                },
-                {
-                    title: 'Predefined Tests',
-                    url: '/predefined-tests',
-                },
+                { title: 'Risks', url: '/risks' },
+                { title: 'Controls', url: '/controls' },
+                { title: 'Predefined Tests', url: '/predefined-tests' },
             ],
         },
         {
@@ -88,88 +61,33 @@ const data = {
             url: '/audit-missions',
             icon: Briefcase,
             items: [
-                {
-                    title: 'Planning',
-                    url: '/plannings',
-                },
-                {
-                    title: 'In Progress',
-                    url: '/audit-missions?status=in_progress',
-                },
-                {
-                    title: 'Follow-up',
-                    url: '/audit-missions?status=follow_up',
-                },
-                {
-                    title: 'Closed',
-                    url: '/audit-missions?status=closed',
-                },
-                {
-                    title: 'Documents',
-                    url: '/requested-documents',
-                },
+                { title: 'Planning', url: '/plannings' },
+                { title: 'In Progress', url: '/audit-missions?status=in_progress' },
+                { title: 'Follow-up', url: '/audit-missions?status=follow_up' },
+                { title: 'Closed', url: '/audit-missions?status=closed' },
+                { title: 'Documents', url: '/requested-documents' },
             ],
-             
-        
-
         },
         {
-    title: 'Compliance Management',
-    url: '/compliance-management',
-    icon: PackageCheck,
-    items: [
-        {
-            title: 'Frameworks',
-            url: '/frameworks',
+            title: 'Compliance Management',
+            url: '/compliance-management',
+            icon: PackageCheck,
+            items: [
+                { title: 'Frameworks', url: '/frameworks' },
+                { title: 'Requirements', url: '/requirements' },
+                { title: 'Requirement tests', url: '/req-testing' },],
         },
-         {
-  title: 'Requirements',
-  url: '/requirements',
-},
-{
-  title: 'Requirement tests',
-  url: '/req-testing',
-},
     ],
-},  
+}
 
-        // {
-        //     title: 'Administration',
-        //     url: '/admin',
-        //     icon: Settings,
-        //     items: [
-        //         {
-        //             title: 'Organizations',
-        //             url: '/organizations',
-        //         },
-        //         {
-        //             title: 'Users',
-        //             url: '/users',
-        //         },
-        //         {
-        //             title: 'Roles',
-        //             url: '/roles',
-        //         },
-        //         {
-        //             title: 'Permissions',
-        //             url: '/permissions',
-        //         },
-        //         {
-        //             title: 'History Logs',
-        //             url: '/history-logs',
-        //         },
-        //     ],
-        // },
-    ],
-};
-
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-    const [searchOpen, setSearchOpen] = useState(false);
-    const { state } = useSidebar();
+export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
+    const [searchOpen, setSearchOpen] = useState(false)
+    const { state } = useSidebar()
 
     return (
         <>
             <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+
             <Sidebar collapsible="icon" {...props}>
                 <SidebarHeader>
                     <SidebarMenu>
@@ -181,7 +99,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                     </SidebarMenu>
+
                     <OrganizationSwitcher />
+
                     {state === 'expanded' && (
                         <SidebarMenu>
                             <SidebarMenuItem>
@@ -204,6 +124,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         </SidebarMenu>
                     )}
                 </SidebarHeader>
+
                 <SidebarContent className="overflow-hidden">
                     <ScrollArea className="h-full">
                         <div className="flex flex-col gap-2 p-2">
@@ -211,11 +132,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         </div>
                     </ScrollArea>
                 </SidebarContent>
+
                 <SidebarFooter>
                     <NavUser />
                 </SidebarFooter>
+
                 <SidebarRail />
             </Sidebar>
         </>
-    );
+    )
 }
