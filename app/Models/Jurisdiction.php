@@ -17,8 +17,7 @@ class Jurisdiction extends Model
 
     public function frameworks()
     {
-        return $this->belongsToMany(Framework::class,'framework_jurisdiction')->withTimestamps();
+        return $this->belongsToMany(Framework::class, 'framework_jurisdiction')->withTimestamps();
 
     }
-
 }

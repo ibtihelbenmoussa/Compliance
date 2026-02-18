@@ -13,25 +13,35 @@ class Framework extends Model
 
     protected $casts = [
         'release_date' => 'date',
-        'tags' => 'array',
+
         'effective_date' => 'date',
         'retired_date' => 'date',
     ];
 
-    public function tags()
+    /*    public function tags()
+       {
+           return $this->belongsTo(Tag::class);
+       } */
+
+    public function jurisdictions()
     {
-        return $this->belongsTo(Tag::class);
+        return $this->belongsToMany(
+            Jurisdiction::class,
+            'framework_jurisdiction',
+            'framework_id',
+            'jurisdiction_id'
+        )->withTimestamps();
     }
 
-public function jurisdictions()
-{
-    return $this->belongsToMany(
-        Jurisdiction::class,
-        'framework_jurisdiction',
-        'framework_id',        
-        'jurisdiction_id'      
-    )->withTimestamps();
-}
+    public function tags()
+    {
+        return $this->belongsToMany(
+            Tag::class,
+            'tags_framework',
+            'framework_id',
+            'tag_id'
+        )->withTimestamps();
+    }
 }
 
 
