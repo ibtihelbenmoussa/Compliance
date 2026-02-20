@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Head, useForm, usePage, Link } from '@inertiajs/react'
+import { Head, useForm, usePage, Link, router } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,9 +26,7 @@ export default function EditRequirement() {
     selectedTagIds: string[]
   }>().props
 
-  const [isMessageOpen, setIsMessageOpen] = useState(false)
-  const [message, setMessage] = useState('')
-  const [messageType, setMessageType] = useState<'success' | 'error'>('success')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const formatDateString = (date: string | null) => (date ? date.split('T')[0] : '')
 
@@ -59,16 +57,19 @@ export default function EditRequirement() {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
+    setErrorMessage(null)
+
     put(`/requirements/${requirement.id}`, {
       onSuccess: () => {
-        setMessage('Requirement updated successfully.')
-        setMessageType('success')
-        setIsMessageOpen(true)
+        // Redirection vers la liste après succès
+        router.visit('/requirements', {
+          method: 'get',
+          preserveScroll: true,
+        })
       },
-      onError: () => {
-        setMessage('Error updating requirement.')
-        setMessageType('error')
-        setIsMessageOpen(true)
+      onError: (errors) => {
+        setErrorMessage('Error updating requirement. Please check the form fields.')
+        console.error('Update errors:', errors)
       },
     })
   }
@@ -81,31 +82,6 @@ export default function EditRequirement() {
       ]}
     >
       <Head title="Edit Requirement" />
-
-      {/* Message Modal */}
-      {isMessageOpen && message && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div
-            className={`bg-gray-900 border rounded-2xl p-6 w-full max-w-md shadow-2xl ${
-              messageType === 'success' ? 'border-green-600' : 'border-red-600'
-            }`}
-          >
-            <h3
-              className={`text-xl font-semibold mb-3 ${
-                messageType === 'success' ? 'text-green-400' : 'text-red-400'
-              }`}
-            >
-              {messageType === 'success' ? 'Success' : 'Error'}
-            </h3>
-            <p className="text-gray-300 mb-6">{message}</p>
-            <div className="flex justify-end">
-              <Button variant="outline" onClick={() => setIsMessageOpen(false)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="space-y-12 p-6 lg:p-10">
         {/* Header */}
@@ -125,7 +101,14 @@ export default function EditRequirement() {
           </Button>
         </div>
 
-        {/* Card du formulaire */}
+        {/* Message d'erreur */}
+        {errorMessage && (
+          <div className="bg-red-950/40 border border-red-700 text-red-200 px-5 py-4 rounded-lg">
+            {errorMessage}
+          </div>
+        )}
+
+        {/* Formulaire principal */}
         <Card className="border-none shadow-2xl bg-gradient-to-b from-card to-card/90 backdrop-blur-sm">
           <CardContent className="pt-10 pb-14 px-6 md:px-12 lg:px-16">
             <form onSubmit={submit} className="space-y-16">

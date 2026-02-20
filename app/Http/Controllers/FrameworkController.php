@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\FrameworksExport;
+use Illuminate\Validation\Rule;
 
 class FrameworkController extends Controller
 {
@@ -128,32 +129,32 @@ class FrameworkController extends Controller
 
 
     public function show(Framework $framework)
-    {
-        $this->authorizeFramework($framework);
+{
+    $this->authorizeFramework($framework);
 
-        $framework->load('jurisdictions');
+    $framework->load(['jurisdictions', 'tags']);
 
-        $allTags = Tag::pluck('name', 'id')->toArray();
-
-        $tagIds = json_decode($framework->tags ?? '[]', true) ?: [];
-
-        $framework->tags_names = collect($tagIds)
-            ->map(fn($id) => $allTags[$id] ?? null)
-            ->filter()
-            ->values()
-            ->toArray();
-
-        $framework->jurisdictions_names = collect($framework->jurisdictions)
-            ->pluck('name')
-            ->filter()
-            ->values()
-            ->toArray();
-
-        return Inertia::render('Frameworks/Show', [
-            'framework' => $framework
-        ]);
-    }
-
+    return Inertia::render('Frameworks/Show', [
+        'framework' => [
+            'id' => $framework->id,
+            'code' => $framework->code,
+            'name' => $framework->name,
+            'version' => $framework->version,
+            'type' => $framework->type,
+            'publisher' => $framework->publisher,
+            'scope' => $framework->scope,
+            'status' => $framework->status,
+            'release_date' => $framework->release_date,
+            'effective_date' => $framework->effective_date,
+            'retired_date' => $framework->retired_date,
+            'description' => $framework->description,
+            'language' => $framework->language,
+            'url_reference' => $framework->url_reference,
+            'tags' => $framework->tags->pluck('name'),
+            'jurisdictions' => $framework->jurisdictions->pluck('name'),
+        ]
+    ]);
+}
 
 
     public function edit(Framework $framework)
@@ -186,53 +187,57 @@ class FrameworkController extends Controller
         ]);
     }
     public function update(Request $request, Framework $framework)
-    {
-        //dd($request->all());
-        $this->authorizeFramework($framework);
+{
+    $this->authorizeFramework($framework);
 
-        $data = $request->validate([
-            'code' => 'required|unique:frameworks,code,' . $framework->id,
-            'name' => 'required|string|max:255',
-            'version' => 'nullable|string|max:255',
-            'type' => 'required|in:standard,regulation,contract,internal_policy',
-            'publisher' => 'nullable|string|max:255',
-            'tags' => 'nullable|array',
-            'tags.*' => 'exists:tags,id',
-            'jurisdictions' => 'nullable|array',
-            'jurisdictions.*' => 'exists:jurisdictions,id',
-            'scope' => 'nullable|string',
-            'status' => 'required|in:active,draft,deprecated,archived',
-            'release_date' => 'nullable|date',
-            'effective_date' => 'nullable|date',
-            'retired_date' => 'nullable|date',
-            'description' => 'nullable|string',
-            'language' => 'nullable|string',
-            'url_reference' => 'nullable|url',
-        ]);
-$framework->update([
-    'name' => $data['name'],
-    'code' => $data['code'],
-    'version' => $data['version'] ?? null,
-    'type' => $data['type'],
-    'publisher' => $data['publisher'] ?? null,
-    'scope' => $data['scope'] ?? null,
-    'status' => $data['status'],
-    'release_date' => $data['release_date'] ?? null,
-    'effective_date' => $data['effective_date'] ?? null,
-    'retired_date' => $data['retired_date'] ?? null,
-    'description' => $data['description'] ?? null,
-    'language' => $data['language'] ?? null,
-    'url_reference' => $data['url_reference'] ?? null,
-]);
+    // Règles de validation – on accepte "sometimes" pour les champs envoyés par drag & drop
+    $data = $request->validate([
+        'code'             => ['sometimes', 'required', 'string', 'max:255', Rule::unique('frameworks')->ignore($framework->id)],
+        'name'             => 'sometimes|required|string|max:255',
+        'version'          => 'sometimes|nullable|string|max:255',
+        'type'             => 'sometimes|required|in:standard,regulation,contract,internal_policy',   // ← IMPORTANT : sometimes
+        'publisher'        => 'sometimes|nullable|string|max:255',
+        'tags'             => 'sometimes|nullable|array',
+        'tags.*'           => 'exists:tags,id',
+        'jurisdictions'    => 'sometimes|nullable|array',
+        'jurisdictions.*'  => 'exists:jurisdictions,id',
+        'scope'            => 'sometimes|nullable|string',
+        'status'           => 'sometimes|required|in:active,draft,deprecated,archived',             // ← sometimes aussi
+        'release_date'     => 'sometimes|nullable|date',
+        'effective_date'   => 'sometimes|nullable|date',
+        'retired_date'     => 'sometimes|nullable|date',
+        'description'      => 'sometimes|nullable|string',
+        'language'         => 'sometimes|nullable|string',
+        'url_reference'    => 'sometimes|nullable|url',
+    ]);
 
-$framework->tags()->sync($data['tags'] ?? []);
-$framework->jurisdictions()->sync($data['jurisdictions'] ?? []);
+    // Mise à jour des champs scalaires
+    $framework->update([
+        'code'             => $data['code']             ?? $framework->code,
+        'name'             => $data['name']             ?? $framework->name,
+        'version'          => $data['version']          ?? $framework->version,
+        'type'             => $data['type']             ?? $framework->type,          // ← maintenant pris en compte
+        'publisher'        => $data['publisher']        ?? $framework->publisher,
+        'scope'            => $data['scope']            ?? $framework->scope,
+        'status'           => $data['status']           ?? $framework->status,       // ← idem
+        'release_date'     => $data['release_date']     ?? $framework->release_date,
+        'effective_date'   => $data['effective_date']   ?? $framework->effective_date,
+        'retired_date'     => $data['retired_date']     ?? $framework->retired_date,
+        'description'      => $data['description']      ?? $framework->description,
+        'language'         => $data['language']         ?? $framework->language,
+        'url_reference'    => $data['url_reference']    ?? $framework->url_reference,
+    ]);
 
-
-        $framework->jurisdictions()->sync($data['jurisdictions'] ?? []);
+    if ($request->has('tags')) {
         $framework->tags()->sync($data['tags'] ?? []);
-        return redirect('/frameworks')->with('success', 'Framework updated successfully.');
     }
+
+    if ($request->has('jurisdictions')) {
+        $framework->jurisdictions()->sync($data['jurisdictions'] ?? []);
+    }
+
+    return redirect()->back()->with('success', 'Framework updated successfully.');
+}
 
     public function destroy(Framework $framework)
     {

@@ -265,7 +265,6 @@ class RequirementController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        // Validation partielle : champs requis seulement s'ils sont envoyés
         $validated = $request->validate([
             'code'             => 'sometimes|required|string|max:255|unique:requirements,code,' . $requirement->id,
             'title'            => 'sometimes|required|string|max:255',
@@ -285,16 +284,13 @@ class RequirementController extends Controller
             'attachments'      => 'sometimes|nullable|string',
         ]);
 
-        // Mise à jour uniquement des champs envoyés
         $requirement->update($validated);
 
-        // Gestion spéciale des tags si envoyés
         if ($request->has('tags')) {
             $requirement->tags = !empty($validated['tags']) ? json_encode($validated['tags']) : null;
             $requirement->saveQuietly(); // save sans toucher updated_at
         }
 
-        // Retour Inertia-friendly (back pour conserver filtres/scroll/position)
         return back()->with('success', 'Requirement updated successfully.');
     }
 

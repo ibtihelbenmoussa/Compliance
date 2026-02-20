@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Head, Link, router } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { ServerDataTable } from '@/components/server-data-table'
@@ -56,6 +56,7 @@ import {
   Plus,
   Trash2,
   Archive,
+  AlertTriangle,
   LayoutGrid,
   Table as TableIcon,
   GripVertical,
@@ -68,20 +69,12 @@ import {
   Droppable,
   Draggable,
   type DropResult,
-  type DroppableProvided,
-  type DroppableStateSnapshot,
-  type DraggableProvided,
-  type DraggableStateSnapshot,
 } from '@hello-pangea/dnd'
 
-interface Jurisdiction {
+interface RelationItem {
   id: number
   name: string
-}
-
-interface TagItem {
-  id: number
-  name: string
+  pivot?: Record<string, any>
 }
 
 export interface Framework {
@@ -91,21 +84,55 @@ export interface Framework {
   version?: string | null
   type: string
   publisher?: string | null
-  jurisdictions: string[] | null     // ← strings grâce au backend
-  tags: string[] | null             // ← strings grâce au backend
+  jurisdictions: (string | RelationItem)[] | null
+  tags: (string | RelationItem)[] | null
   status: string
   updated_at?: string | null
+  description?: string | null
 }
 
 interface FrameworksIndexProps {
   frameworks: PaginatedData<Framework>
 }
 
+type GroupBy = 'status' | 'type'
+
 export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [frameworkToDelete, setFrameworkToDelete] = useState<Framework | null>(null)
   const [exportLoading, setExportLoading] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table')
+  const [groupBy, setGroupBy] = useState<GroupBy>('status')
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 300)
+    return () => clearTimeout(timer)
+  }, [])
+
+  // ────────────────────────────────────────────────
+  // Couleurs harmonisées avec Requirements
+  // ────────────────────────────────────────────────
+  const getStatusBadgeClasses = (status: string | undefined) => {
+    const s = (status || '').toLowerCase()
+    const styles: Record<string, string> = {
+      active: 'border-emerald-500 bg-emerald-900/30 text-white',
+      draft: 'border-amber-500 bg-amber-900/30 text-white',
+      archived: 'border-slate-500 bg-slate-800/40 text-white',
+    }
+    return styles[s] || 'border-gray-600 bg-gray-800/30 text-white'
+  }
+
+  const getTypeBadgeClasses = (type: string | undefined) => {
+    const t = (type || '').toLowerCase()
+    const styles: Record<string, string> = {
+      standard: 'border-emerald-500 bg-emerald-900/30 text-white',
+      regulation: 'border-violet-500 bg-violet-900/30 text-white',
+      contract: 'border-amber-500 bg-amber-900/30 text-white',
+      internal_policy: 'border-indigo-500 bg-indigo-900/30 text-white',
+    }
+    return styles[t] || 'border-gray-600 bg-gray-800/30 text-white'
+  }
 
   const handleExport = async () => {
     setExportLoading(true)
@@ -132,37 +159,77 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
     }
   }
 
-  // Statistiques
+  // ────────────────────────────────────────────────
+  // Statistiques dynamiques
+  // ────────────────────────────────────────────────
   const stats = useMemo(() => {
     const data = frameworks.data
     const total = data.length
-    const activeCount = data.filter(f => f.status?.toLowerCase() === 'active').length
-    const draftCount = data.filter(f => f.status?.toLowerCase() === 'draft').length
-    const archivedCount = data.filter(f => f.status?.toLowerCase() === 'archived').length
 
-    return {
-      total,
-      activeCount,
-      draftCount,
-      archivedCount,
-      activePercent: total > 0 ? Math.round((activeCount / total) * 100) : 0,
-      draftPercent: total > 0 ? Math.round((draftCount / total) * 100) : 0,
-      archivedPercent: total > 0 ? Math.round((archivedCount / total) * 100) : 0,
+    if (groupBy === 'status') {
+      const active = data.filter(f => f.status?.toLowerCase() === 'active').length
+      const draft = data.filter(f => f.status?.toLowerCase() === 'draft').length
+      const archived = data.filter(f => f.status?.toLowerCase() === 'archived').length
+
+      return {
+        total,
+        items: [
+          { label: 'Total', count: total, percent: 100, color: 'blue', icon: Building2 },
+          { label: 'Active', count: active, percent: total > 0 ? Math.round((active / total) * 100) : 0, color: 'emerald', icon: CheckCircle2 },
+          { label: 'Draft', count: draft, percent: total > 0 ? Math.round((draft / total) * 100) : 0, color: 'amber', icon: FileText },
+          { label: 'Archived', count: archived, percent: total > 0 ? Math.round((archived / total) * 100) : 0, color: 'slate', icon: Archive },
+        ]
+      }
+    } else {
+      const standard = data.filter(f => f.type?.toLowerCase() === 'standard').length
+      const regulation = data.filter(f => f.type?.toLowerCase() === 'regulation').length
+      const contract = data.filter(f => f.type?.toLowerCase() === 'contract').length
+      const internalPolicy = data.filter(f => f.type?.toLowerCase() === 'internal_policy').length
+
+      return {
+        total,
+        items: [
+          { label: 'Total', count: total, percent: 100, color: 'blue', icon: Building2 },
+          { label: 'Standard', count: standard, percent: total > 0 ? Math.round((standard / total) * 100) : 0, color: 'emerald', icon: Layers },
+          { label: 'Regulation', count: regulation, percent: total > 0 ? Math.round((regulation / total) * 100) : 0, color: 'violet', icon: Globe },
+          { label: 'Contract', count: contract, percent: total > 0 ? Math.round((contract / total) * 100) : 0, color: 'amber', icon: FileText },
+          { label: 'Internal Policy', count: internalPolicy, percent: total > 0 ? Math.round((internalPolicy / total) * 100) : 0, color: 'indigo', icon: Building2 },
+        ]
+      }
     }
-  }, [frameworks.data])
+  }, [frameworks.data, groupBy])
 
-  // Groupement pour Kanban
-  const groupedByStatus = useMemo(() => {
+  const groupedData = useMemo(() => {
     return frameworks.data.reduce((acc, fw) => {
-      const status = (fw.status || 'unknown').toLowerCase()
-      if (!acc[status]) acc[status] = []
-      acc[status].push(fw)
+      const key = groupBy === 'status'
+        ? (fw.status || 'unknown').toLowerCase()
+        : (fw.type || 'unknown').toLowerCase()
+      acc[key] = acc[key] || []
+      acc[key].push(fw)
       return acc
     }, {} as Record<string, Framework[]>)
-  }, [frameworks.data])
+  }, [frameworks.data, groupBy])
 
-  const statusOrder = ['active', 'draft', 'archived'] as const
+  const groupOrder = useMemo(() => {
+    return groupBy === 'status'
+      ? ['active', 'draft', 'archived', 'unknown']
+      : ['standard', 'regulation', 'contract', 'internal_policy', 'unknown']
+  }, [groupBy])
 
+  const getColumnTitle = (key: string) => {
+    if (key === 'unknown') return 'Unknown'
+    if (groupBy === 'status') {
+      return key.charAt(0).toUpperCase() + key.slice(1)
+    }
+    return key
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
+
+  // ────────────────────────────────────────────────
+  // Filtres comme dans Requirements
+  // ────────────────────────────────────────────────
   const statusOptions: FacetedFilterOption[] = [
     { label: 'Active', value: 'active', icon: CheckCircle2 },
     { label: 'Draft', value: 'draft', icon: FileText },
@@ -221,7 +288,10 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
         </div>
       ),
       cell: ({ row }) => (
-        <Badge variant="outline" className="capitalize">
+        <Badge
+          variant="outline"
+          className={`capitalize border font-medium px-2.5 py-0.5 ${getTypeBadgeClasses(row.getValue('type'))}`}
+        >
           {(row.getValue('type') as string)?.replace('_', ' ') || '—'}
         </Badge>
       ),
@@ -246,21 +316,27 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
       ),
       cell: ({ row }) => {
         const jurisdictions = row.original.jurisdictions || []
-        return jurisdictions.length === 0 ? (
-          <span className="text-muted-foreground">—</span>
-        ) : (
-          <div className="flex flex-wrap gap-1 max-w-[220px]">
-            {jurisdictions.slice(0, 3).map((name, i) => (
-              <Badge key={i} variant="secondary" className="text-xs">
-                {name}
-              </Badge>
-            ))}
+        if (jurisdictions.length === 0) return <span className="text-muted-foreground text-xs">—</span>
+
+        return (
+          <div className="flex flex-wrap gap-1 max-w-[200px]">
+            {jurisdictions.slice(0, 3).map((item, i) => {
+              const name = typeof item === 'string' ? item : (item as RelationItem)?.name || '—'
+              return (
+                <Badge key={i} variant="outline" className="text-xs border-gray-600 text-white bg-gray-800/30">
+                  {name}
+                </Badge>
+              )
+            })}
             {jurisdictions.length > 3 && (
-              <Badge variant="outline" className="text-xs">+{jurisdictions.length - 3}</Badge>
+              <Badge variant="secondary" className="text-xs">
+                +{jurisdictions.length - 3}
+              </Badge>
             )}
           </div>
         )
       },
+      enableSorting: false,
     },
     {
       accessorKey: 'status',
@@ -270,22 +346,14 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
           <DataTableColumnHeader column={column} title="Status" />
         </div>
       ),
-      cell: ({ row }) => {
-        const status = (row.getValue('status') as string)?.toLowerCase() || ''
-        const variants: Record<string, string> = {
-          active: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30',
-          draft: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30',
-          archived: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800/50',
-        }
-        return (
-          <Badge
-            variant="outline"
-            className={`capitalize ${variants[status] || 'bg-gray-100'}`}
-          >
-            {status ? status.charAt(0).toUpperCase() + status.slice(1) : '—'}
-          </Badge>
-        )
-      },
+      cell: ({ row }) => (
+        <Badge
+          variant="outline"
+          className={`capitalize border font-medium px-2.5 py-0.5 ${getStatusBadgeClasses(row.getValue('status'))}`}
+        >
+          {(row.getValue('status') as string)?.charAt(0).toUpperCase() + (row.getValue('status') as string)?.slice(1).toLowerCase() || '—'}
+        </Badge>
+      ),
     },
     {
       id: 'tags',
@@ -297,15 +365,22 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
       ),
       cell: ({ row }) => {
         const tags = row.original.tags || []
-        return tags.length === 0 ? (
-          <span className="text-muted-foreground text-xs">—</span>
-        ) : (
+        if (tags.length === 0) return <span className="text-muted-foreground text-xs">—</span>
+
+        return (
           <div className="flex flex-wrap gap-1 max-w-[200px]">
-            {tags.slice(0, 3).map((tag, i) => (
-              <Badge key={i} variant="secondary" className="text-xs">{tag}</Badge>
-            ))}
+            {tags.slice(0, 3).map((tag, i) => {
+              const name = typeof tag === 'string' ? tag : (tag as RelationItem)?.name || '—'
+              return (
+                <Badge key={i} variant="outline" className="text-xs border-gray-600 text-white bg-gray-800/30">
+                  {name}
+                </Badge>
+              )
+            })}
             {tags.length > 3 && (
-              <Badge variant="outline" className="text-xs">+{tags.length - 3}</Badge>
+              <Badge variant="secondary" className="text-xs">
+                +{tags.length - 3}
+              </Badge>
             )}
           </div>
         )
@@ -359,7 +434,6 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
     }
   }
 
-  // Fonction pour gérer le drag & drop (mise à jour du status)
   const onDragEnd = (result: DropResult) => {
     const { source, destination, draggableId } = result
 
@@ -367,13 +441,17 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
     if (source.droppableId === destination.droppableId && source.index === destination.index) return
 
     const frameworkId = Number(draggableId)
-    const newStatus = destination.droppableId
+    const newValue = destination.droppableId
 
-    router.put(`/frameworks/${frameworkId}`, { status: newStatus }, {
+    const payload = groupBy === 'status'
+      ? { status: newValue }
+      : { type: newValue }
+
+    router.put(`/frameworks/${frameworkId}`, payload, {
       preserveState: true,
       preserveScroll: true,
       onSuccess: () => {
-        // Le backend renverra la liste mise à jour via Inertia
+        // toast.success("Framework moved successfully")
       },
       onError: (errors) => {
         console.error('Failed to move framework:', errors)
@@ -390,13 +468,13 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Frameworks</h1>
-            <p className="text-muted-foreground">Manage compliance frameworks and regulations</p>
+            <p className="text-muted-foreground">Manage compliance and regulatory frameworks</p>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
             <Button onClick={() => router.visit('/frameworks/create')}>
               <Plus className="mr-2 h-4 w-4" />
-              New Framework
+              Add Framework
             </Button>
 
             <div className="border rounded-md inline-flex bg-muted/40">
@@ -422,242 +500,187 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
           </div>
         </div>
 
-        {/* Statistics Cards */}
+        {/* Statistiques */}
         <div className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-xl border bg-card p-6 hover:shadow-xl transition-all group">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total</p>
-                <p className="text-4xl font-bold">{stats.total}</p>
+          {stats.items.map((stat, idx) => (
+            <div
+              key={stat.label}
+              className="rounded-xl border bg-card p-6 hover:shadow-xl transition-all group hover:-translate-y-1 hover:scale-[1.02] hover:shadow-2xl duration-300 ease-out"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                  <p className={`text-4xl font-bold ${idx === 0 ? '' : `text-${stat.color}-600`}`}>
+                    {stat.count}
+                  </p>
+                </div>
+                <stat.icon className={`h-10 w-10 text-${stat.color}-500 opacity-80 group-hover:opacity-100 transition-opacity`} />
               </div>
-              <Building2 className="h-10 w-10 text-blue-500 opacity-80" />
-            </div>
-            <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500" style={{ width: '100%' }} />
-            </div>
-          </div>
-
-          <div className="rounded-xl border bg-card p-6 hover:shadow-xl transition-all group">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active</p>
-                <p className="text-4xl font-bold text-emerald-600">{stats.activeCount}</p>
+              <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className={`h-full bg-${stat.color}-500 rounded-full transition-all duration-1500 ease-out`}
+                  style={{ width: isMounted ? `${stat.percent}%` : '0%' }}
+                />
               </div>
-              <CheckCircle2 className="h-10 w-10 text-emerald-500 opacity-80" />
+              {idx > 0 && (
+                <p className="text-xs text-muted-foreground mt-1 text-right">
+                  {isMounted ? stat.percent : 0}%
+                </p>
+              )}
             </div>
-            <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-emerald-500" style={{ width: `${stats.activePercent}%` }} />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1 text-right">{stats.activePercent}%</p>
-          </div>
-
-          <div className="rounded-xl border bg-card p-6 hover:shadow-xl transition-all group">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Draft</p>
-                <p className="text-4xl font-bold text-amber-600">{stats.draftCount}</p>
-              </div>
-              <FileText className="h-10 w-10 text-amber-500 opacity-80" />
-            </div>
-            <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-amber-500" style={{ width: `${stats.draftPercent}%` }} />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1 text-right">{stats.draftPercent}%</p>
-          </div>
-
-          <div className="rounded-xl border bg-card p-6 hover:shadow-xl transition-all group">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Archived</p>
-                <p className="text-4xl font-bold text-slate-600">{stats.archivedCount}</p>
-              </div>
-              <Archive className="h-10 w-10 text-slate-500 opacity-80" />
-            </div>
-            <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-slate-500" style={{ width: `${stats.archivedPercent}%` }} />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1 text-right">{stats.archivedPercent}%</p>
-          </div>
+          ))}
         </div>
 
-        {/* Main Content */}
+        {/* Contenu principal */}
         {viewMode === 'table' ? (
           <ServerDataTable
             columns={columns}
             data={frameworks}
-            searchPlaceholder="Search by name or code..."
+            searchPlaceholder="Search by code or name..."
             onExport={handleExport}
             exportLoading={exportLoading}
             filters={
               <>
-                <DataTableFacetedFilter filterKey="status" title="Status" options={statusOptions} />
-                <DataTableSelectFilter filterKey="type" title="Type" placeholder="All types" options={typeOptions} />
+                <DataTableFacetedFilter
+                  filterKey="status"
+                  title="Status"
+                  options={statusOptions}
+                />
+                <DataTableSelectFilter
+                  filterKey="type"
+                  title="Type"
+                  placeholder="All types"
+                  options={typeOptions}
+                />
               </>
             }
             initialState={{ columnPinning: { right: ['actions'] } }}
           />
         ) : (
-          <div className="space-y-6 -mx-6 px-0">
-            {/* Grouping Selector */}
-            <div className="flex items-center justify-end px-6">
-              <div className="flex items-center gap-3 bg-zinc-900/50 backdrop-blur-lg border border-zinc-800/70 rounded-xl px-6 py-3 shadow-xl">
-                <ListFilter className="h-5 w-5 text-zinc-400" />
-                <Select value={viewMode} onValueChange={(v) => setViewMode(v as 'table' | 'kanban')}>
-                  <SelectTrigger className="w-[200px] border-0 bg-transparent focus:ring-0 shadow-none p-0 h-auto text-zinc-100 font-medium">
-                    <SelectValue placeholder="View mode..." />
+          <div className="space-y-4">
+            <div className="flex items-center justify-end">
+              <div className="flex items-center gap-2">
+                <ListFilter className="h-4 w-4 text-muted-foreground" />
+                <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Group by..." />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-900/95 border-zinc-800 backdrop-blur-md text-zinc-100">
-                    <SelectItem value="table">Table</SelectItem>
-                    <SelectItem value="kanban">Kanban</SelectItem>
+                  <SelectContent>
+                    <SelectItem value="status">By Status</SelectItem>
+                    <SelectItem value="type">By Type</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* Kanban Board – full width responsive */}
             <DragDropContext onDragEnd={onDragEnd}>
-              <div className="overflow-x-auto pb-12 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-950/20">
-                <div className="flex gap-6 w-full min-w-full px-6">
-                  {statusOrder.map((key) => {
-                    const items = groupedByStatus[key] || []
-                    const title = key.charAt(0).toUpperCase() + key.slice(1)
-                    const itemCount = items.length
-                    const isActive = itemCount > 0
+              <div className="overflow-x-auto pb-8">
+                <div className="flex gap-6 min-w-max">
+                  {groupOrder.map((key) => {
+                    const items = groupedData[key] || []
+                    const title = getColumnTitle(key)
 
                     return (
                       <Droppable droppableId={key} key={key}>
-                        {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (
+                        {(provided, snapshot) => (
                           <div
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            className={`
-                              flex-1 min-w-[320px] max-w-[420px] 
-                              flex flex-col rounded-2xl border border-zinc-800/60 
-                              bg-zinc-950/65 backdrop-blur-2xl shadow-2xl overflow-hidden
-                              transition-all duration-300 ease-out
-                              ${snapshot.isDraggingOver
-                                ? 'ring-2 ring-indigo-500/50 bg-indigo-950/15 scale-[1.015] shadow-indigo-950/50'
-                                : 'hover:ring-1 hover:ring-zinc-700/60 hover:shadow-2xl hover:scale-[1.008]'}
-                            `}
+                            className={`bg-muted/30 rounded-xl border w-[380px] flex flex-col shadow-sm min-h-[500px] transition-all
+                              ${snapshot.isDraggingOver ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}
                           >
-                            {/* Header */}
-                            <div className={`
-                              px-6 py-5 border-b border-zinc-800/50
-                              bg-gradient-to-r ${isActive
-                                ? 'from-indigo-950/50 to-violet-950/40'
-                                : 'from-zinc-900/60 to-zinc-950/50'}
-                              backdrop-blur-xl sticky top-0 z-10
-                            `}>
+                            <div className="p-4 border-b bg-background/80 sticky top-0 backdrop-blur-sm z-10 rounded-t-xl">
                               <div className="flex items-center justify-between">
-                                <h3 className="font-semibold text-xl tracking-tight text-zinc-50">
-                                  {title}
-                                </h3>
-                                <Badge
-                                  className={`
-                                    px-4 py-1.5 text-base font-medium transition-all
-                                    ${isActive
-                                      ? 'bg-indigo-500/25 text-indigo-300 border-indigo-500/40'
-                                      : 'bg-zinc-800/70 text-zinc-400 border-zinc-700/50'}
-                                  `}
-                                >
-                                  {itemCount}
-                                </Badge>
+                                <h3 className="font-semibold text-lg">{title}</h3>
+                                <Badge variant="secondary">{items.length}</Badge>
                               </div>
                             </div>
 
-                            {/* Contenu colonne */}
-                            <div className="flex-1 p-6 space-y-5 overflow-y-auto min-h-[680px]">
-                              {itemCount === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-center py-24 opacity-70">
-                                  <Archive className="h-16 w-16 text-zinc-600 mb-6" strokeWidth={1.3} />
-                                  <p className="text-zinc-500 font-medium text-xl">
-                                    No frameworks here
-                                  </p>
+                            <div className="p-4 flex-1 space-y-4 overflow-y-auto">
+                              {items.length === 0 ? (
+                                <div className="text-center text-muted-foreground py-12 italic">
+                                  No frameworks here
                                 </div>
                               ) : (
                                 items.map((fw, index) => (
-                                  <Draggable
-                                    key={fw.id}
-                                    draggableId={String(fw.id)}
-                                    index={index}
-                                  >
-                                    {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
+                                  <Draggable key={fw.id} draggableId={String(fw.id)} index={index}>
+                                    {(provided, snapshot) => (
                                       <div
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
-                                        className={`
-                                          bg-zinc-900/85 border border-zinc-800/70 rounded-xl p-6 
-                                          shadow-xl transition-all duration-300 ease-out
-                                          group/card relative overflow-hidden
-                                          hover:shadow-2xl hover:-translate-y-1 hover:border-indigo-500/40 hover:scale-[1.02]
-                                          ${snapshot.isDragging
-                                            ? 'shadow-2xl ring-2 ring-indigo-500/60 scale-[1.04] rotate-[0.5deg] border-indigo-500/50 bg-indigo-950/25'
-                                            : ''}
-                                        `}
+                                        className={`bg-card border rounded-lg p-4 shadow transition-all
+                                          ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-primary scale-[1.02]' : 'hover:shadow-md'}`}
                                       >
                                         <div
                                           {...provided.dragHandleProps}
-                                          className="absolute top-5 right-5 opacity-50 hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10"
+                                          className="cursor-grab active:cursor-grabbing mb-3 inline-block"
                                         >
-                                          <GripVertical className="h-6 w-6 text-zinc-500" />
+                                          <GripVertical className="h-5 w-5 text-muted-foreground hover:text-foreground" />
                                         </div>
 
                                         <div
-                                          className="cursor-pointer pr-10"
+                                          className="cursor-pointer group"
                                           onClick={() => router.visit(`/frameworks/${fw.id}`)}
                                         >
-                                          <div className="flex items-start justify-between mb-4">
-                                            <h4 className="font-bold text-xl text-zinc-50 group-hover/card:text-indigo-400 transition-colors">
-                                              {fw.code} — {fw.name}
-                                            </h4>
-                                            {fw.version && (
-                                              <Badge variant="outline" className="text-sm bg-zinc-800/70 text-zinc-300 border-zinc-700/60">
-                                                v{fw.version}
-                                              </Badge>
-                                            )}
+                                          <div className="font-medium group-hover:underline mb-1">
+                                            {fw.code} — {fw.name}
                                           </div>
 
-                                          <div className="text-sm text-zinc-400 mb-4 line-clamp-2">
+                                          <div className="text-sm text-muted-foreground mb-3 line-clamp-2">
                                             {fw.description || 'No description'}
                                           </div>
 
-                                          <div className="flex flex-wrap gap-2.5">
-                                            <Badge variant="outline" className="text-sm px-3 py-1 bg-zinc-800/50 border-zinc-700 text-zinc-300">
-                                              {fw.type.replace('_', ' ')}
+                                          <div className="flex flex-wrap gap-2">
+                                            <Badge
+                                              variant="outline"
+                                              className={`text-xs px-2.5 py-0.5 font-medium border ${getTypeBadgeClasses(fw.type)}`}
+                                            >
+                                              {fw.type?.replace('_', ' ')?.toUpperCase() || '—'}
                                             </Badge>
 
+                                            <Badge
+                                              variant="outline"
+                                              className={`text-xs px-2.5 py-0.5 font-medium border ${getStatusBadgeClasses(fw.status)}`}
+                                            >
+                                              {fw.status?.toUpperCase() || '—'}
+                                            </Badge>
+
+                                            {fw.version && (
+                                              <Badge
+                                                variant="outline"
+                                                className="text-xs border-gray-600 text-white bg-gray-800/30"
+                                              >
+                                                v{fw.version}
+                                              </Badge>
+                                            )}
+
                                             {fw.publisher && (
-                                              <Badge variant="outline" className="text-sm px-3 py-1 bg-zinc-800/50 border-zinc-700 text-zinc-300">
+                                              <Badge
+                                                variant="outline"
+                                                className="text-xs border-gray-600 text-white bg-gray-800/30"
+                                              >
                                                 {fw.publisher}
                                               </Badge>
                                             )}
                                           </div>
 
-                                          {fw.jurisdictions?.length ? (
-                                            <div className="flex flex-wrap gap-2 mt-5">
-                                              {fw.jurisdictions.slice(0, 3).map((name, i) => (
-                                                <Badge key={i} variant="outline" className="text-sm px-3 py-1 bg-zinc-800/50 border-zinc-700 text-zinc-300">
-                                                  {name}
-                                                </Badge>
-                                              ))}
-                                              {fw.jurisdictions.length > 3 && (
-                                                <Badge variant="secondary" className="text-sm bg-zinc-800/70 text-zinc-400">
-                                                  +{fw.jurisdictions.length - 3}
-                                                </Badge>
-                                              )}
-                                            </div>
-                                          ) : null}
-
                                           {fw.tags?.length ? (
-                                            <div className="flex flex-wrap gap-2 mt-5">
-                                              {fw.tags.slice(0, 4).map((tag, i) => (
-                                                <Badge key={i} variant="outline" className="text-sm px-3 py-1 bg-zinc-800/50 border-zinc-700 text-zinc-300 hover:bg-zinc-700/70 transition-colors">
-                                                  {tag}
-                                                </Badge>
-                                              ))}
-                                              {fw.tags.length > 4 && (
-                                                <Badge variant="secondary" className="text-sm bg-zinc-800/70 text-zinc-400">
-                                                  +{fw.tags.length - 4}
+                                            <div className="flex flex-wrap gap-1 mt-3">
+                                              {fw.tags.slice(0, 3).map((tag, i) => {
+                                                const name = typeof tag === 'string' ? tag : (tag as RelationItem)?.name || '—'
+                                                return (
+                                                  <Badge
+                                                    key={i}
+                                                    variant="outline"
+                                                    className="text-xs border-gray-600 text-white bg-gray-800/30"
+                                                  >
+                                                    {name}
+                                                  </Badge>
+                                                )
+                                              })}
+                                              {fw.tags.length > 3 && (
+                                                <Badge variant="secondary" className="text-xs">
+                                                  +{fw.tags.length - 3}
                                                 </Badge>
                                               )}
                                             </div>
@@ -682,7 +705,6 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
         )}
       </div>
 
-      {/* Delete Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
