@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Head, Link, router } from '@inertiajs/react'
+import { Head, router } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,10 +11,6 @@ import {
   AlertCircle,
   Table as TableIcon,
   LayoutGrid,
-  ListFilter,
-  Calendar,
-  FileText,
-  Building2,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -37,7 +33,7 @@ interface Requirement {
   deadline?: string | null
   framework?: { code: string; name: string } | null
   process?: { name: string } | null
-  tags?: string[]
+  tags?: unknown[] | null | undefined
 }
 
 interface Props {
@@ -61,16 +57,26 @@ export default function RequirementTestsIndex({ date: initialDate, requirements 
     }
   }
 
+  // Normalisation : on force tags à être toujours string[]
+  const normalizedRequirements = useMemo(() => {
+    return requirements.map(req => ({
+      ...req,
+      tags: Array.isArray(req.tags)
+        ? req.tags.filter((t): t is string => typeof t === 'string')
+        : [],
+    }))
+  }, [requirements])
+
   // Grouper par fréquence pour la vue Board
   const groupedByFrequency = useMemo(() => {
     const groups: Record<string, Requirement[]> = {}
-    requirements.forEach(req => {
+    normalizedRequirements.forEach(req => {
       const freq = req.frequency || 'other'
       if (!groups[freq]) groups[freq] = []
       groups[freq].push(req)
     })
     return groups
-  }, [requirements])
+  }, [normalizedRequirements])
 
   const frequencyOrder = [
     'continuous', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'one_time', 'other'
@@ -170,10 +176,10 @@ export default function RequirementTestsIndex({ date: initialDate, requirements 
         </div>
 
         {/* Contenu selon le mode */}
-        {requirements.length === 0 ? (
+        {normalizedRequirements.length === 0 ? (
           <EmptyState />
         ) : viewMode === 'table' ? (
-          <TableView requirements={requirements} />
+          <TableView requirements={normalizedRequirements} />
         ) : (
           <BoardView grouped={groupedByFrequency} order={frequencyOrder} />
         )}
@@ -305,7 +311,7 @@ function BoardView({
                         </div>
                         {req.deadline && (
                           <div className="text-sm text-muted-foreground flex items-center gap-1.5">
-                            <Calendar className="h-3.5 w-3.5" />
+                            <CalendarIcon className="h-3.5 w-3.5" />
                             {format(new Date(req.deadline), 'MMM d, yyyy')}
                           </div>
                         )}
@@ -336,15 +342,21 @@ function BoardView({
                           {req.process.name}
                         </Badge>
                       )}
-                      {req.tags?.slice(0, 3).map((tag, i) => (
-                        <Badge key={i} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                      {req.tags && req.tags.length > 3 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{req.tags.length - 3}
-                        </Badge>
+
+                      {/* Tags – version ultra-safe et typée */}
+                      {Array.isArray(req.tags) && req.tags.length > 0 && (
+                        <>
+                          {req.tags.slice(0, 3).map((tag, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {tag as string}
+                            </Badge>
+                          ))}
+                          {req.tags.length > 3 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{req.tags.length - 3}
+                            </Badge>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

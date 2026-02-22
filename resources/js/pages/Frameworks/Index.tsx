@@ -56,7 +56,6 @@ import {
   Plus,
   Trash2,
   Archive,
-  AlertTriangle,
   LayoutGrid,
   Table as TableIcon,
   GripVertical,
@@ -111,7 +110,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
   }, [])
 
   // ────────────────────────────────────────────────
-  // Couleurs harmonisées avec Requirements
+  // Couleurs harmonisées
   // ────────────────────────────────────────────────
   const getStatusBadgeClasses = (status: string | undefined) => {
     const s = (status || '').toLowerCase()
@@ -227,9 +226,6 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
       .join(' ')
   }
 
-  // ────────────────────────────────────────────────
-  // Filtres comme dans Requirements
-  // ────────────────────────────────────────────────
   const statusOptions: FacetedFilterOption[] = [
     { label: 'Active', value: 'active', icon: CheckCircle2 },
     { label: 'Draft', value: 'draft', icon: FileText },
@@ -463,8 +459,8 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
     <AppLayout>
       <Head title="Frameworks" />
 
-      <div className="space-y-6 p-6">
-        {/* Header */}
+      <div className="min-h-screen space-y-6 p-6 pb-12">
+        {/* Header principal */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Frameworks</h1>
@@ -500,209 +496,229 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
           </div>
         </div>
 
-        {/* Statistiques */}
-        <div className="grid gap-4 md:grid-cols-4">
-          {stats.items.map((stat, idx) => (
-            <div
-              key={stat.label}
-              className="rounded-xl border bg-card p-6 hover:shadow-xl transition-all group hover:-translate-y-1 hover:scale-[1.02] hover:shadow-2xl duration-300 ease-out"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-                  <p className={`text-4xl font-bold ${idx === 0 ? '' : `text-${stat.color}-600`}`}>
+        {/* Statistiques STICKY */}
+        <div className="sticky top-0 z-20 -mx-6 px-6 pt-4 pb-5 bg-background/95 backdrop-blur-md border-b shadow-sm">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+            {stats.items.map((stat, idx) => {
+              const barColorClass = {
+                Total: 'bg-blue-500',
+                Active: 'bg-emerald-500',
+                Draft: 'bg-amber-500',
+                Archived: 'bg-slate-500',
+                Standard: 'bg-emerald-600',
+                Regulation: 'bg-violet-600',
+                Contract: 'bg-amber-600',
+                'Internal Policy': 'bg-indigo-600',
+              }[stat.label] || 'bg-gray-500'
+
+              const textColorClass = idx === 0
+                ? 'text-blue-600 dark:text-blue-400'
+                : `text-${stat.color}-600 dark:text-${stat.color}-400`
+
+              return (
+                <div
+                  key={stat.label}
+                  className="rounded-xl border bg-card/90 p-5 backdrop-blur-sm transition-all group hover:shadow-md hover:-translate-y-0.5"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                    <stat.icon className={`h-6 w-6 ${textColorClass} opacity-90`} />
+                  </div>
+
+                  <p className={`text-3xl font-bold ${textColorClass}`}>
                     {stat.count}
                   </p>
+
+                  <div className="mt-3 h-1.5 bg-muted/60 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${barColorClass} rounded-full transition-all duration-1000 ease-out`}
+                      style={{ width: isMounted ? `${stat.percent}%` : '0%' }}
+                    />
+                  </div>
+
+                  <p className="text-xs text-muted-foreground mt-1.5 text-right">
+                    {isMounted ? stat.percent : 0}%
+                  </p>
                 </div>
-                <stat.icon className={`h-10 w-10 text-${stat.color}-500 opacity-80 group-hover:opacity-100 transition-opacity`} />
-              </div>
-              <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className={`h-full bg-${stat.color}-500 rounded-full transition-all duration-1500 ease-out`}
-                  style={{ width: isMounted ? `${stat.percent}%` : '0%' }}
-                />
-              </div>
-              {idx > 0 && (
-                <p className="text-xs text-muted-foreground mt-1 text-right">
-                  {isMounted ? stat.percent : 0}%
-                </p>
-              )}
-            </div>
-          ))}
+              )
+            })}
+          </div>
         </div>
 
-        {/* Contenu principal */}
-        {viewMode === 'table' ? (
-          <ServerDataTable
-            columns={columns}
-            data={frameworks}
-            searchPlaceholder="Search by code or name..."
-            onExport={handleExport}
-            exportLoading={exportLoading}
-            filters={
-              <>
-                <DataTableFacetedFilter
-                  filterKey="status"
-                  title="Status"
-                  options={statusOptions}
-                />
-                <DataTableSelectFilter
-                  filterKey="type"
-                  title="Type"
-                  placeholder="All types"
-                  options={typeOptions}
-                />
-              </>
-            }
-            initialState={{ columnPinning: { right: ['actions'] } }}
-          />
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-end">
-              <div className="flex items-center gap-2">
-                <ListFilter className="h-4 w-4 text-muted-foreground" />
-                <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Group by..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="status">By Status</SelectItem>
-                    <SelectItem value="type">By Type</SelectItem>
-                  </SelectContent>
-                </Select>
+        {/* Contenu principal avec padding pour le sticky */}
+        <div className="pt-4">
+          {viewMode === 'table' ? (
+            <ServerDataTable
+              columns={columns}
+              data={frameworks}
+              searchPlaceholder="Search by code or name..."
+              onExport={handleExport}
+              exportLoading={exportLoading}
+              filters={
+                <>
+                  <DataTableFacetedFilter
+                    filterKey="status"
+                    title="Status"
+                    options={statusOptions}
+                  />
+                  <DataTableSelectFilter
+                    filterKey="type"
+                    title="Type"
+                    placeholder="All types"
+                    options={typeOptions}
+                  />
+                </>
+              }
+              initialState={{ columnPinning: { right: ['actions'] } }}
+            />
+          ) : (
+            <div className="space-y-6">
+              <div className="flex items-center justify-end">
+                <div className="flex items-center gap-2">
+                  <ListFilter className="h-4 w-4 text-muted-foreground" />
+                  <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Group by..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="status">By Status</SelectItem>
+                      <SelectItem value="type">By Type</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
 
-            <DragDropContext onDragEnd={onDragEnd}>
-              <div className="overflow-x-auto pb-8">
-                <div className="flex gap-6 min-w-max">
-                  {groupOrder.map((key) => {
-                    const items = groupedData[key] || []
-                    const title = getColumnTitle(key)
+              <DragDropContext onDragEnd={onDragEnd}>
+                <div className="overflow-x-auto pb-8">
+                  <div className="flex gap-6 min-w-max">
+                    {groupOrder.map((key) => {
+                      const items = groupedData[key] || []
+                      const title = getColumnTitle(key)
 
-                    return (
-                      <Droppable droppableId={key} key={key}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.droppableProps}
-                            className={`bg-muted/30 rounded-xl border w-[380px] flex flex-col shadow-sm min-h-[500px] transition-all
-                              ${snapshot.isDraggingOver ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}
-                          >
-                            <div className="p-4 border-b bg-background/80 sticky top-0 backdrop-blur-sm z-10 rounded-t-xl">
-                              <div className="flex items-center justify-between">
-                                <h3 className="font-semibold text-lg">{title}</h3>
-                                <Badge variant="secondary">{items.length}</Badge>
-                              </div>
-                            </div>
-
-                            <div className="p-4 flex-1 space-y-4 overflow-y-auto">
-                              {items.length === 0 ? (
-                                <div className="text-center text-muted-foreground py-12 italic">
-                                  No frameworks here
+                      return (
+                        <Droppable droppableId={key} key={key}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              className={`bg-muted/30 rounded-xl border w-[380px] flex flex-col shadow-sm min-h-[500px] transition-all
+                                ${snapshot.isDraggingOver ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}
+                            >
+                              <div className="p-4 border-b bg-background/80 sticky top-0 backdrop-blur-sm z-10 rounded-t-xl">
+                                <div className="flex items-center justify-between">
+                                  <h3 className="font-semibold text-lg">{title}</h3>
+                                  <Badge variant="secondary">{items.length}</Badge>
                                 </div>
-                              ) : (
-                                items.map((fw, index) => (
-                                  <Draggable key={fw.id} draggableId={String(fw.id)} index={index}>
-                                    {(provided, snapshot) => (
-                                      <div
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        className={`bg-card border rounded-lg p-4 shadow transition-all
-                                          ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-primary scale-[1.02]' : 'hover:shadow-md'}`}
-                                      >
-                                        <div
-                                          {...provided.dragHandleProps}
-                                          className="cursor-grab active:cursor-grabbing mb-3 inline-block"
-                                        >
-                                          <GripVertical className="h-5 w-5 text-muted-foreground hover:text-foreground" />
-                                        </div>
+                              </div>
 
+                              <div className="p-4 flex-1 space-y-4 overflow-y-auto">
+                                {items.length === 0 ? (
+                                  <div className="text-center text-muted-foreground py-12 italic">
+                                    No frameworks here
+                                  </div>
+                                ) : (
+                                  items.map((fw, index) => (
+                                    <Draggable key={fw.id} draggableId={String(fw.id)} index={index}>
+                                      {(provided, snapshot) => (
                                         <div
-                                          className="cursor-pointer group"
-                                          onClick={() => router.visit(`/frameworks/${fw.id}`)}
+                                          ref={provided.innerRef}
+                                          {...provided.draggableProps}
+                                          className={`bg-card border rounded-lg p-4 shadow transition-all
+                                            ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-primary scale-[1.02]' : 'hover:shadow-md'}`}
                                         >
-                                          <div className="font-medium group-hover:underline mb-1">
-                                            {fw.code} — {fw.name}
+                                          <div
+                                            {...provided.dragHandleProps}
+                                            className="cursor-grab active:cursor-grabbing mb-3 inline-block"
+                                          >
+                                            <GripVertical className="h-5 w-5 text-muted-foreground hover:text-foreground" />
                                           </div>
 
-                                          <div className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                                            {fw.description || 'No description'}
-                                          </div>
+                                          <div
+                                            className="cursor-pointer group"
+                                            onClick={() => router.visit(`/frameworks/${fw.id}`)}
+                                          >
+                                            <div className="font-medium group-hover:underline mb-1">
+                                              {fw.code} — {fw.name}
+                                            </div>
 
-                                          <div className="flex flex-wrap gap-2">
-                                            <Badge
-                                              variant="outline"
-                                              className={`text-xs px-2.5 py-0.5 font-medium border ${getTypeBadgeClasses(fw.type)}`}
-                                            >
-                                              {fw.type?.replace('_', ' ')?.toUpperCase() || '—'}
-                                            </Badge>
+                                            <div className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                                              {fw.description || 'No description'}
+                                            </div>
 
-                                            <Badge
-                                              variant="outline"
-                                              className={`text-xs px-2.5 py-0.5 font-medium border ${getStatusBadgeClasses(fw.status)}`}
-                                            >
-                                              {fw.status?.toUpperCase() || '—'}
-                                            </Badge>
-
-                                            {fw.version && (
+                                            <div className="flex flex-wrap gap-2">
                                               <Badge
                                                 variant="outline"
-                                                className="text-xs border-gray-600 text-white bg-gray-800/30"
+                                                className={`text-xs px-2.5 py-0.5 font-medium border ${getTypeBadgeClasses(fw.type)}`}
                                               >
-                                                v{fw.version}
+                                                {fw.type?.replace('_', ' ')?.toUpperCase() || '—'}
                                               </Badge>
-                                            )}
 
-                                            {fw.publisher && (
                                               <Badge
                                                 variant="outline"
-                                                className="text-xs border-gray-600 text-white bg-gray-800/30"
+                                                className={`text-xs px-2.5 py-0.5 font-medium border ${getStatusBadgeClasses(fw.status)}`}
                                               >
-                                                {fw.publisher}
+                                                {fw.status?.toUpperCase() || '—'}
                                               </Badge>
-                                            )}
-                                          </div>
 
-                                          {fw.tags?.length ? (
-                                            <div className="flex flex-wrap gap-1 mt-3">
-                                              {fw.tags.slice(0, 3).map((tag, i) => {
-                                                const name = typeof tag === 'string' ? tag : (tag as RelationItem)?.name || '—'
-                                                return (
-                                                  <Badge
-                                                    key={i}
-                                                    variant="outline"
-                                                    className="text-xs border-gray-600 text-white bg-gray-800/30"
-                                                  >
-                                                    {name}
-                                                  </Badge>
-                                                )
-                                              })}
-                                              {fw.tags.length > 3 && (
-                                                <Badge variant="secondary" className="text-xs">
-                                                  +{fw.tags.length - 3}
+                                              {fw.version && (
+                                                <Badge
+                                                  variant="outline"
+                                                  className="text-xs border-gray-600 text-white bg-gray-800/30"
+                                                >
+                                                  v{fw.version}
+                                                </Badge>
+                                              )}
+
+                                              {fw.publisher && (
+                                                <Badge
+                                                  variant="outline"
+                                                  className="text-xs border-gray-600 text-white bg-gray-800/30"
+                                                >
+                                                  {fw.publisher}
                                                 </Badge>
                                               )}
                                             </div>
-                                          ) : null}
+
+                                            {fw.tags?.length ? (
+                                              <div className="flex flex-wrap gap-1 mt-3">
+                                                {fw.tags.slice(0, 3).map((tag, i) => {
+                                                  const name = typeof tag === 'string' ? tag : (tag as RelationItem)?.name || '—'
+                                                  return (
+                                                    <Badge
+                                                      key={i}
+                                                      variant="outline"
+                                                      className="text-xs border-gray-600 text-white bg-gray-800/30"
+                                                    >
+                                                      {name}
+                                                    </Badge>
+                                                  )
+                                                })}
+                                                {fw.tags.length > 3 && (
+                                                  <Badge variant="secondary" className="text-xs">
+                                                    +{fw.tags.length - 3}
+                                                  </Badge>
+                                                )}
+                                              </div>
+                                            ) : null}
+                                          </div>
                                         </div>
-                                      </div>
-                                    )}
-                                  </Draggable>
-                                ))
-                              )}
-                              {provided.placeholder}
+                                      )}
+                                    </Draggable>
+                                  ))
+                                )}
+                                {provided.placeholder}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </Droppable>
-                    )
-                  })}
+                          )}
+                        </Droppable>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
-            </DragDropContext>
-          </div>
-        )}
+              </DragDropContext>
+            </div>
+          )}
+        </div>
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
