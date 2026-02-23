@@ -42,6 +42,10 @@ class Framework extends Model
             'tag_id'
         )->withTimestamps();
     }
+     public function requirementTests()
+    {
+        return $this->hasMany(RequirementTest::class);
+    }
 }
 
 

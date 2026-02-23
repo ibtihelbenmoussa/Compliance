@@ -332,19 +332,19 @@ export default function CreateRequirement() {
                       <SelectTrigger className={`h-11 ${errors.framework_id ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Select framework" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {frameworks.length > 0 ? (
-                          frameworks.map((fw) => (
-                            <SelectItem key={fw.id} value={fw.id.toString()}>
-                              {fw.code} - {fw.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="" disabled>
-                            No frameworks available
-                          </SelectItem>
-                        )}
-                      </SelectContent>
+             <SelectContent>
+  {frameworks.length > 0 ? (
+    frameworks.map((fw) => (
+      <SelectItem key={fw.id} value={fw.id.toString()}>
+        {fw.code} - {fw.name}
+      </SelectItem>
+    ))
+  ) : (
+    <SelectItem value="none" disabled>
+      No frameworks available
+    </SelectItem>
+  )}
+</SelectContent>
                     </Select>
                     {errors.framework_id && <p className="text-red-600 text-sm mt-1.5">{errors.framework_id}</p>}
                   </div>

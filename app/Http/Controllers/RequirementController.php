@@ -383,9 +383,10 @@ class RequirementController extends Controller
             ? Carbon::parse($request->query('date'))
             : Carbon::today();
 
-        $requirements = Requirement::where('organization_id', $currentOrgId)
-            ->where('is_deleted', 0)
-            ->get();
+        $requirements = Requirement::with('framework') // ← ajout de la relation
+    ->where('organization_id', $currentOrgId)
+    ->where('is_deleted', 0)
+    ->get();
 
         $toTest = $requirements->filter(function ($req) use ($date) {
             if (!$req->deadline) {

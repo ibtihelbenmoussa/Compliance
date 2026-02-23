@@ -8,6 +8,7 @@ use App\Exports\FrameworksExport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\RequirementController;
+use App\Http\Controllers\RequirementTestController;
 
 
 
@@ -133,7 +134,14 @@ Route::get(
     Route::put('/requirements/{requirement}', [RequirementController::class, 'update'])->name('requirements.update');
     Route::delete('/requirements/{requirement}', [RequirementController::class, 'destroy'])->name('requirements.destroy');
 
+Route::get('/requirements/{requirement}/test/create', [RequirementTestController::class, 'createForRequirement'])
+    ->name('requirements.test.create');
 
+// Enregistrer le test
+Route::post('/requirements/{requirement}/test', [RequirementTestController::class, 'storeForRequirement'])
+    ->name('requirements.test.store');
+    Route::get('requirement-tests', [RequirementTestController::class, 'index'])
+    ->name('requirement-tests.index');
 
 });
 

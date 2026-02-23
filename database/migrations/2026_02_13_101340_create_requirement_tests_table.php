@@ -11,16 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('requirement_tests', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('requirement_id')->constrained()->onDelete('cascade');
-        $table->foreignId('user_id')->constrained()->onDelete('restrict'); 
-        $table->date('test_date');           
-        $table->enum('status', ['compliant', 'non_compliant', 'partial', 'na'])->default('compliant');
-        $table->text('comment')->nullable();  
-        $table->json('evidence')->nullable();
-            $table->timestamps();
-        });
+       Schema::create('requirement_tests', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('requirement_id')->constrained()->onDelete('cascade');
+$table->foreignId('framework_id')->nullable()->constrained()->onDelete('cascade');    $table->foreignId('user_id')->constrained()->onDelete('restrict'); 
+    $table->date('test_date');           
+    $table->enum('status', ['compliant', 'non_compliant', 'partial', 'na'])->default('compliant');
+    $table->text('comment')->nullable();  
+    $table->json('evidence')->nullable();
+    $table->timestamps();
+});
     }
 
     /**

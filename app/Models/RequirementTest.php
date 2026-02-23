@@ -12,6 +12,7 @@ class RequirementTest extends Model
     protected $fillable = [
         'requirement_id',
         'user_id',
+        'framework_id',
         'test_date',
         'status',
         'comment',
@@ -32,4 +33,9 @@ class RequirementTest extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+ public function framework()
+{
+    return $this->belongsTo(Framework::class);
+}
 }
