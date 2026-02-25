@@ -188,7 +188,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
       return {
         total,
         items: [
-          { label: 'Total', count: total, percent: 100, color: 'blue', icon: Building2 },
+          
           { label: 'Standard', count: standard, percent: total > 0 ? Math.round((standard / total) * 100) : 0, color: 'emerald', icon: Layers },
           { label: 'Regulation', count: regulation, percent: total > 0 ? Math.round((regulation / total) * 100) : 0, color: 'violet', icon: Globe },
           { label: 'Contract', count: contract, percent: total > 0 ? Math.round((contract / total) * 100) : 0, color: 'amber', icon: FileText },
@@ -211,8 +211,8 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
 
   const groupOrder = useMemo(() => {
     return groupBy === 'status'
-      ? ['active', 'draft', 'archived', 'unknown']
-      : ['standard', 'regulation', 'contract', 'internal_policy', 'unknown']
+      ? ['active', 'draft', 'archived']
+      : ['standard', 'regulation', 'contract', 'internal_policy']
   }, [groupBy])
 
   const getColumnTitle = (key: string) => {
@@ -601,7 +601,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                             <div
                               ref={provided.innerRef}
                               {...provided.droppableProps}
-                              className={`bg-muted/30 rounded-xl border w-[380px] flex flex-col shadow-sm min-h-[500px] transition-all
+                              className={`bg-muted/30 rounded-xl border w-[500px] flex flex-col shadow-sm min-h-[500px] transition-all
                                 ${snapshot.isDraggingOver ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}
                             >
                               <div className="p-4 border-b bg-background/80 sticky top-0 backdrop-blur-sm z-10 rounded-t-xl">

@@ -2,42 +2,35 @@ import { useState, useMemo } from 'react'
 import { Head, router, Link } from '@inertiajs/react'
 import { route } from 'ziggy-js'
 import AppLayout from '@/layouts/app-layout'
+import { ServerDataTable } from '@/components/server-data-table'
+import { DataTableColumnHeader } from '@/components/server-data-table-column-header'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
   Plus,
-  AlertCircle,
   Table as TableIcon,
   LayoutGrid,
-  Clock,
-  RefreshCw,
-  CheckCircle2,
-  AlertTriangle,
-  Building2,
   Key,
   FileText,
+  RefreshCw,
+  Building2,
   MoreHorizontal,
-  Eye,
-  Pencil,
-  Trash2,
 } from 'lucide-react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { format } from 'date-fns'
 import { enUS } from 'date-fns/locale'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar as CalendarComponent } from '@/components/ui/calendar'
 import { cn } from '@/lib/utils'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Card, CardContent } from '@/components/ui/card'
 
 interface Framework {
   id: number
@@ -64,7 +57,6 @@ interface Requirement {
   framework?: Framework | null
   process?: Process | null
   tags?: Tag[] | null
-  status?: 'pending' | 'in_progress' | 'completed'
 }
 
 interface Props {
@@ -74,25 +66,53 @@ interface Props {
 
 type ViewMode = 'table' | 'board'
 
-export default function RequirementTestsIndex({ date: initialDate, requirements }: Props) {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date(initialDate))
+const getFrequencyBadgeClasses = (frequency: string) => {
+  const freq = (frequency || '').toLowerCase().trim()
+
+  if (freq.includes('daily')) {
+    return 'bg-gradient-to-r from-blue-950/50 to-blue-900/40 text-blue-300 border border-blue-800/50'
+  }
+  if (freq.includes('weekly')) {
+    return 'bg-gradient-to-r from-purple-950/50 to-purple-900/40 text-purple-300 border border-purple-800/50'
+  }
+  if (freq.includes('monthly')) {
+    return 'bg-gradient-to-r from-amber-950/50 to-amber-900/40 text-amber-300 border border-amber-800/50'
+  }
+  if (freq.includes('yearly') || freq.includes('annual')) {
+    return 'bg-gradient-to-r from-emerald-950/50 to-emerald-900/40 text-emerald-300 border border-emerald-800/50'
+  }
+
+  return 'bg-gray-800/40 text-gray-300 border border-gray-700/50'
+}
+
+export default function RequirementTestsIndex({ date: initialDate, requirements: rawRequirements }: Props) {
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const initial = new Date(initialDate)
+    return isNaN(initial.getTime()) ? new Date() : initial
+  })
+
   const [viewMode, setViewMode] = useState<ViewMode>('table')
 
-  const formattedDate = format(selectedDate, 'EEEE, MMMM d, yyyy', { locale: enUS })
+  const formattedDate = selectedDate && !isNaN(selectedDate.getTime())
+    ? format(selectedDate, 'EEEE, MMMM d, yyyy', { locale: enUS })
+    : 'Select a date'
 
   const handleDateSelect = (newDate: Date | undefined) => {
-    if (newDate) {
+    if (newDate && !isNaN(newDate.getTime())) {
       setSelectedDate(newDate)
       const dateStr = format(newDate, 'yyyy-MM-dd')
-      router.visit(`/requirements/testing?date=${dateStr}`, {
+
+      router.visit(route('req-testing.index'), {
+        data: { date: dateStr },
         preserveState: true,
         preserveScroll: true,
+        replace: true,
       })
     }
   }
 
-  const normalizedRequirements = useMemo(() => {
-    return [...requirements]
+  const requirements = useMemo(() => {
+    return [...(rawRequirements ?? [])]
       .map(req => ({
         ...req,
         tags: Array.isArray(req.tags) ? req.tags : [],
@@ -100,357 +120,343 @@ export default function RequirementTestsIndex({ date: initialDate, requirements 
         process: req.process ?? null,
       }))
       .sort((a, b) => a.code.localeCompare(b.code))
-  }, [requirements])
+  }, [rawRequirements])
 
-  const groupedByFrequency = useMemo(() => {
-    const groups: Record<string, Requirement[]> = {}
-    normalizedRequirements.forEach(req => {
-      const freq = req.frequency?.toLowerCase() || 'other'
-      groups[freq] = groups[freq] || []
-      groups[freq].push(req)
-    })
-    return groups
-  }, [normalizedRequirements])
+  const columns: ColumnDef<Requirement>[] = [
+    {
+      accessorKey: 'code',
+      header: ({ column }) => (
+        <div className="flex items-center gap-1.5 pl-3">
+          <Key className="h-4 w-4 text-muted-foreground/70" />
+          <DataTableColumnHeader column={column} title="Code" />
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="font-mono font-medium text-sm tracking-tight pl-3 py-4">
+          {row.getValue('code') ?? '—'}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'title',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Title" className="pl-3" />,
+      cell: ({ row }) => (
+        <div className="py-4 pl-3 pr-4">
+          <Link
+            href={`/requirements/${row.original.id}`}
+            className="font-medium text-foreground/90 hover:text-primary transition-colors line-clamp-2"
+          >
+            {row.getValue('title')}
+          </Link>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'frequency',
+      header: ({ column }) => (
+        <div className="flex items-center gap-1.5">
+          <RefreshCw className="h-4 w-4 text-muted-foreground/70" />
+          <DataTableColumnHeader column={column} title="Frequency" />
+        </div>
+      ),
+      cell: ({ row }) => {
+        const frequency = row.getValue('frequency') as string
+        const displayText = frequency?.replace('_', ' ') || '—'
+        const badgeClasses = getFrequencyBadgeClasses(frequency)
 
-  const frequencyOrder = [
-    'continuous',
-    'daily',
-    'weekly',
-    'monthly',
-    'quarterly',
-    'yearly',
-    'one_time',
-    'other',
+        return (
+          <div className="py-4">
+            <span
+              className={cn(
+                'inline-flex items-center justify-center',
+                'rounded-full px-3 py-1 text-xs font-medium',
+                badgeClasses
+              )}
+            >
+              {displayText}
+            </span>
+          </div>
+        )
+      },
+    },
+    {
+      accessorFn: row => (row.framework ? `${row.framework.code} — ${row.framework.name}` : '—'),
+      id: 'framework',
+      header: () => <div className="pl-0.5">Framework</div>,
+      cell: ({ row }) => (
+        <div className="py-4 text-sm text-muted-foreground/80 line-clamp-1">
+          {row.getValue('framework')}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'deadline',
+      header: () => (
+        <div className="flex items-center gap-1.5">
+          <CalendarIcon className="h-4 w-4 text-muted-foreground/70" />
+          <div>Deadline</div>
+        </div>
+      ),
+      cell: ({ row }) => {
+        const deadlineStr = row.original.deadline
+
+        if (!deadlineStr) {
+          return (
+            <div className="py-4 flex items-center gap-2 text-muted-foreground/60 text-sm">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-muted-foreground/40" />
+              —
+            </div>
+          )
+        }
+
+        const deadlineDate = new Date(deadlineStr)
+        if (isNaN(deadlineDate.getTime())) {
+          return (
+            <div className="py-4 flex items-center gap-2 text-red-400/80 text-sm">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500/60" />
+              Invalid date
+            </div>
+          )
+        }
+
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+
+        const diffTime = deadlineDate.getTime() - today.getTime()
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+        let dotColor = 'bg-muted-foreground/40'
+        let textColor = 'text-muted-foreground/80'
+        let displayText = format(deadlineDate, 'MMM d, yyyy', { locale: enUS })
+
+        if (diffDays < 0) {
+          dotColor = 'bg-red-500/70'
+          textColor = 'text-red-400/90 font-medium'
+        } else if (diffDays <= 3) {
+          dotColor = 'bg-amber-500/70'
+          textColor = 'text-amber-400/90 font-medium'
+        } else {
+          dotColor = 'bg-emerald-500/50'
+          textColor = 'text-emerald-300/90'
+        }
+
+        return (
+          <div className={cn('py-4 flex items-center gap-2.5 text-sm', textColor)}>
+            <span className={cn('inline-block w-2.5 h-2.5 rounded-full shadow-sm', dotColor)} />
+            {displayText}
+          </div>
+        )
+      },
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => {
+        const req = row.original
+        return (
+          <div className="flex justify-end items-center pr-3 py-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 opacity-60 hover:opacity-100 hover:bg-accent/50 transition-all"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => router.visit(route('requirements.test.create', req.id))}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Test
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )
+      },
+    },
   ]
-
-  const hasRequirements = normalizedRequirements.length > 0
 
   return (
     <AppLayout>
       <Head title="Compliance Tests" />
 
-      <div className="p-6 md:p-8 lg:p-10 space-y-12 max-w-7xl mx-auto">
-        {/* Hero Section */}
-        <div className="space-y-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
-            <div>
-              <h1 className="text-5xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-                Compliance Tests
-              </h1>
-              <p className="mt-4 text-xl text-muted-foreground font-medium">
-                Track and manage scheduled compliance activities
-              </p>
-            </div>
+      <div className="space-y-6 p-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Compliance Tests</h1>
+            <p className="text-muted-foreground">Track and manage scheduled compliance activities</p>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Date Picker + Navigation */}
-              <div className="flex items-center gap-2 bg-card/80 backdrop-blur-md border border-border/50 rounded-xl px-4 py-2 shadow-lg">
-                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => {
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Date picker */}
+            <div className="flex items-center gap-1 bg-muted/40 border border-border/50 rounded-lg px-3 py-1.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => {
                   const prev = new Date(selectedDate)
                   prev.setDate(prev.getDate() - 1)
                   handleDateSelect(prev)
-                }}>
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
+                }}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" className="px-3 min-w-[220px] justify-start font-normal hover:bg-transparent">
-                      <CalendarIcon className="mr-2 h-5 w-5 text-primary" />
-                      {formattedDate}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={handleDateSelect}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" className="gap-2 px-3 min-w-[210px] justify-start font-normal">
+                    <CalendarIcon className="h-4 w-4 opacity-80" />
+                    {formattedDate}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={handleDateSelect}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
 
-                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => {
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => {
                   const next = new Date(selectedDate)
                   next.setDate(next.getDate() + 1)
                   handleDateSelect(next)
-                }}>
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              </div>
+                }}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
 
-              {/* View Toggle */}
-              <div className="inline-flex rounded-xl border bg-card/80 backdrop-blur-md shadow-lg overflow-hidden">
-                <Button
-                  variant={viewMode === 'table' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="rounded-none px-6 py-5"
-                  onClick={() => setViewMode('table')}
-                >
-                  <TableIcon className="mr-2 h-5 w-5" />
-                  Table
-                </Button>
-                <Button
-                  variant={viewMode === 'board' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="rounded-none px-6 py-5 border-l border-border/50"
-                  onClick={() => setViewMode('board')}
-                >
-                  <LayoutGrid className="mr-2 h-5 w-5" />
-                  Board
-                </Button>
-              </div>
+            {/* View toggle */}
+            <div className="border border-border/50 rounded-lg inline-flex bg-muted/30 overflow-hidden">
+              <Button
+                variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="rounded-none px-4 border-r border-border/40"
+                onClick={() => setViewMode('table')}
+              >
+                <TableIcon className="mr-1.5 h-4 w-4" />
+                Table
+              </Button>
+              <Button
+                variant={viewMode === 'board' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="rounded-none px-4"
+                onClick={() => setViewMode('board')}
+              >
+                <LayoutGrid className="mr-1.5 h-4 w-4" />
+                Board
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* Main Content */}
-        {!hasRequirements ? (
-          <Card className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-16 text-center shadow-lg">
-            <AlertCircle className="h-24 w-24 mx-auto mb-8 text-muted-foreground/60" />
-            <h3 className="text-4xl font-bold mb-4 text-foreground/90">No Tests Scheduled</h3>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              There are no requirements scheduled for testing on this date.
-            </p>
-          </Card>
-        ) : viewMode === 'table' ? (
-          <TableView requirements={normalizedRequirements} />
-        ) : (
-          <BoardView grouped={groupedByFrequency} order={frequencyOrder} />
-        )}
-      </div>
-    </AppLayout>
-  )
-}
-
-// ─── Table View avec glassmorphism ──────────────────────────────────────
-
-function TableView({ requirements }: { requirements: Requirement[] }) {
-  return (
-    <Card className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl shadow-lg overflow-hidden">
-      <Table>
-        <TableHeader className="bg-white/5 backdrop-blur-sm border-b border-white/10">
-          <TableRow>
-            <TableHead className="w-[140px] font-semibold text-foreground/90">
-              <div className="flex items-center gap-2">
-                <Key className="h-4 w-4" />
-                Code
-              </div>
-            </TableHead>
-            <TableHead className="font-semibold text-foreground/90">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Title
-              </div>
-            </TableHead>
-            <TableHead className="w-[140px] font-semibold text-foreground/90">
-              <div className="flex items-center gap-2">
-                <RefreshCw className="h-4 w-4" />
-                Frequency
-              </div>
-            </TableHead>
-            <TableHead className="w-[160px] font-semibold text-foreground/90">
-              <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                Framework
-              </div>
-            </TableHead>
-            <TableHead className="w-[140px] font-semibold text-foreground/90">
-              Deadline
-            </TableHead>
-            <TableHead className="w-[120px] font-semibold text-right text-foreground/90">
-              Action
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {requirements.map(req => (
-            <TableRow
-              key={req.id}
-              className="hover:bg-white/10 transition-colors cursor-pointer group border-b border-white/5 last:border-none"
-              onClick={() => router.visit(`/requirements/${req.id}`)}
+        {/* Main content */}
+        <div className="pt-1">
+          {viewMode === 'table' ? (
+            <div
+              className={cn(
+                'rounded-xl border border-border/40 bg-card/60 shadow-sm overflow-hidden',
+                'backdrop-blur-[1px] transition-all duration-200'
+              )}
             >
-              <TableCell className="font-mono font-medium text-foreground/90">{req.code}</TableCell>
-              <TableCell className="font-medium group-hover:text-primary transition-colors">
-                <Link href={`/requirements/${req.id}`} className="hover:underline">
-                  {req.title}
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline" className="bg-white/5 backdrop-blur-sm border-white/20 text-foreground/80 capitalize px-3 py-1">
-                  {req.frequency.replace('_', ' ')}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {req.framework ? (
-                  <Badge variant="secondary" className="bg-white/5 backdrop-blur-sm border-white/20 px-3 py-1">
-                    {req.framework.code}
-                  </Badge>
+              <ServerDataTable
+                columns={columns}
+                data={requirements}
+                initialState={{
+                  columnPinning: { right: ['actions'] }
+                }}
+              />
+            </div>
+          ) : (
+            <div className="max-w-5xl mx-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {requirements.length === 0 ? (
+                  <div className="col-span-full text-center py-20 text-muted-foreground/70">
+                    <LayoutGrid className="h-16 w-16 mx-auto mb-6 opacity-40" />
+                    <p className="text-lg">Aucune exigence pour cette date</p>
+                  </div>
                 ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </TableCell>
-              <TableCell className="text-sm text-muted-foreground">
-                {req.deadline ? format(new Date(req.deadline), 'MMM d, yyyy', { locale: enUS }) : '—'}
-              </TableCell>
-              <TableCell className="text-right">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="bg-white/5 backdrop-blur-sm border-white/20 hover:bg-white/10 hover:border-white/30 transition-all gap-1.5 shadow-sm"
-                  onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                    e.stopPropagation()
-                    router.visit(route('requirements.test.create', req.id))
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                  Test
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Card>
-  )
-}
+                  requirements.map((req) => (
+                    <div
+                      key={req.id}
+                      className={cn(
+                        'p-5 rounded-xl border bg-card shadow-sm hover:shadow-md transition-all cursor-pointer group',
+                        'hover:border-primary/40 hover:scale-[1.01]'
+                      )}
+                      onClick={() => router.visit(`/requirements/${req.id}`)}
+                    >
+                      {/* Titre */}
+                      <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                        {req.title}
+                      </h3>
 
-// ─── Board View avec glassmorphism + status pills ───────────────────────
-
-function BoardView({
-  grouped,
-  order,
-}: {
-  grouped: Record<string, Requirement[]>
-  order: string[]
-}) {
-  return (
-    <div className="overflow-x-auto pb-10">
-      <div className="flex gap-6 min-w-max">
-        {order.map(freq => {
-          const items = grouped[freq] || []
-          if (items.length === 0) return null
-
-          const title = freq === 'one_time'
-            ? 'One-Time'
-            : freq === 'other'
-            ? 'Other'
-            : freq.charAt(0).toUpperCase() + freq.slice(1).replace('_', ' ')
-
-          return (
-            <Card
-              key={freq}
-              className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl w-[420px] flex flex-col shadow-lg overflow-hidden min-h-[600px] hover:shadow-2xl transition-all duration-300"
-            >
-              <div className="p-6 border-b border-white/10 bg-white/5 backdrop-blur-sm sticky top-0 z-10">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-xl text-foreground/90">{title}</h3>
-                  <Badge variant="secondary" className="bg-white/10 backdrop-blur-md border-white/20 px-4 py-1.5 text-base">
-                    {items.length}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="p-6 flex-1 space-y-6 overflow-y-auto">
-                {items.map(req => (
-                  <Card
-                    key={req.id}
-                    className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-md hover:shadow-xl hover:border-white/20 transition-all duration-300 cursor-pointer"
-                    onClick={() => router.visit(`/requirements/${req.id}`)}
-                  >
-                    <div className="flex items-start justify-between gap-4 mb-4">
-                      <div className="space-y-2 flex-1">
-                        <div className="font-bold text-lg group-hover:text-primary transition-colors">
-                          {req.code} — {req.title}
+                      {/* Code + Fréquence */}
+                      <div className="flex items-center justify-between mb-3 text-sm">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Key className="h-3.5 w-3.5" />
+                          <span className="font-mono">{req.code || '—'}</span>
                         </div>
-                        {req.deadline && (
-                          <div className="text-sm text-muted-foreground flex items-center gap-2">
-                            <CalendarIcon className="h-4 w-4" />
-                            {format(new Date(req.deadline), 'MMM d, yyyy', { locale: enUS })}
-                          </div>
-                        )}
-                      </div>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="bg-white/5 backdrop-blur-sm border-white/20 hover:bg-white/10 hover:border-white/30 transition-all gap-2 shadow-sm"
-                        onClick={e => {
-                          e.stopPropagation()
-                          router.visit(route('requirements.test.create', req.id))
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                        Test
-                      </Button>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {req.framework && (
-                        <Badge variant="secondary" className="bg-white/10 backdrop-blur-md border-white/20 px-3 py-1 text-xs">
-                          {req.framework.code}
-                        </Badge>
-                      )}
-                      {req.process && (
-                        <Badge variant="outline" className="bg-white/5 backdrop-blur-sm border-white/20 px-3 py-1 text-xs">
-                          {req.process.name}
-                        </Badge>
-                      )}
-                      {Array.isArray(req.tags) && req.tags.length > 0 && (
-                        <>
-                          {req.tags.slice(0, 3).map(tag => (
-                            <Badge key={tag.id} variant="outline" className="bg-white/5 backdrop-blur-sm border-white/20 px-3 py-1 text-xs">
-                              {tag.name}
-                            </Badge>
-                          ))}
-                          {req.tags.length > 3 && (
-                            <Badge variant="secondary" className="bg-white/10 backdrop-blur-md border-white/20 px-3 py-1 text-xs">
-                              +{req.tags.length - 3}
-                            </Badge>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    {/* Status Pill */}
-                    {req.status && (
-                      <div className="mt-4">
-                        <Badge
+                        <span
                           className={cn(
-                            "px-4 py-1.5 text-sm font-medium flex items-center gap-2 w-fit rounded-full",
-                            req.status === 'pending' && "bg-amber-500/15 text-amber-400 border-amber-500/30",
-                            req.status === 'in_progress' && "bg-blue-500/15 text-blue-400 border-blue-500/30",
-                            req.status === 'completed' && "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                            'px-2.5 py-0.5 rounded-full text-xs font-medium',
+                            getFrequencyBadgeClasses(req.frequency)
                           )}
                         >
-                          {req.status === 'pending' && <Clock className="h-4 w-4" />}
-                          {req.status === 'in_progress' && <AlertTriangle className="h-4 w-4" />}
-                          {req.status === 'completed' && <CheckCircle2 className="h-4 w-4" />}
-                          {req.status.charAt(0).toUpperCase() + req.status.slice(1).replace('_', ' ')}
-                        </Badge>
+                          {req.frequency?.replace('_', ' ') || '—'}
+                        </span>
                       </div>
-                    )}
-                  </Card>
-                ))}
+
+                      {/* Deadline */}
+                      {req.deadline && (
+                        <div className="text-sm text-muted-foreground flex items-center gap-2 mb-3">
+                          <CalendarIcon className="h-4 w-4" />
+                          {format(new Date(req.deadline), 'MMM d, yyyy', { locale: enUS })}
+                        </div>
+                      )}
+
+                      {/* Framework */}
+                      {req.framework && (
+                        <div className="text-xs text-muted-foreground/80 mb-2">
+                          {req.framework.code} — {req.framework.name}
+                        </div>
+                      )}
+
+                      {/* Bouton action rapide */}
+                      <div className="flex justify-end mt-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-3 opacity-70 hover:opacity-100"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.visit(route('requirements.test.create', req.id))
+                          }}
+                        >
+                          <Plus className="h-4 w-4 mr-1.5" />
+                          Test
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-            </Card>
-          )
-        })}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  )
-}
-
-// ─── Empty State ────────────────────────────────────────────────────────
-
-function EmptyState() {
-  return (
-    <Card className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-16 text-center shadow-lg">
-      <AlertCircle className="h-24 w-24 mx-auto mb-8 text-muted-foreground/60" />
-      <h3 className="text-4xl font-bold mb-4 text-foreground/90">No Tests Scheduled</h3>
-      <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-        There are no requirements scheduled for testing on this date.
-      </p>
-    </Card>
+    </AppLayout>
   )
 }

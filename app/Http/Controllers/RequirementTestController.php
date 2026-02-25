@@ -17,8 +17,8 @@ class RequirementTestController extends Controller
 
         $query = RequirementTest::query()
             ->with([
-                'framework:id,code,name',                // framework du test
-                'requirement.framework:id,code,name',    // framework de l'exigence (optionnel)
+                'framework:id,code,name',                
+                'requirement.framework:id,code,name',    
                 'user:id,name',
             ])
             ->select([
