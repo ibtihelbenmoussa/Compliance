@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { format } from 'date-fns'
-import { CalendarIcon, ChevronLeft } from 'lucide-react'
+import { CalendarIcon, ChevronLeft, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 interface Framework {
   id: number
@@ -33,7 +34,7 @@ interface Props {
 }
 
 export default function Create({ requirement }: Props) {
-  const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
+  const { data, setData, post, processing, errors, setError, clearErrors, recentlySuccessful } = useForm({
     test_code: '',
     name: '',
     objective: '',
@@ -41,7 +42,8 @@ export default function Create({ requirement }: Props) {
     status: 'pending',
     result: '',
     evidence: '',
-    effective_date: '' as string,
+    requirement_id: requirement.id,
+    effective_date: '',
     efficacy: '',
   })
 
@@ -91,11 +93,17 @@ export default function Create({ requirement }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
     if (!validateForm()) return
 
     post(route('requirements.test.store', requirement.id), {
+      preserveScroll: true,
       onSuccess: () => {
-        router.visit(route('requirement-tests.index'))
+        // Force un vrai refresh pour que la liste affiche les nouvelles données
+        window.location.href = route('req-testing.index')
+      },
+      onError: () => {
+        // Les erreurs sont déjà affichées via errors
       },
     })
   }
@@ -103,15 +111,14 @@ export default function Create({ requirement }: Props) {
   return (
     <AppLayout
       breadcrumbs={[
-        { title: 'Compliance Tests', href: '/req-testing' },
-        { title: 'Create', href: '' },
-        
+        { title: 'Compliance Tests', href: route('req-testing.index') },
+        { title: 'Create Test', href: '' },
       ]}
     >
       <Head title="New Compliance Test" />
 
       <div className="space-y-12 p-6 lg:p-10">
-        {/* Header – identique à CreateRequirement */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 pb-6 border-b">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">New Compliance Test</h1>
@@ -133,14 +140,26 @@ export default function Create({ requirement }: Props) {
           </div>
 
           <Button variant="outline" size="sm" asChild>
-            <a href={route('requirement-tests.index')}>
+            <a href={route('req-testing.index')}>
               <ChevronLeft className="mr-2 h-4 w-4" />
               Back to List
             </a>
           </Button>
         </div>
 
-        {/* Formulaire – structure et style identiques à CreateRequirement */}
+        {/* Message de succès (s'affiche seulement si la redirection échoue) */}
+        {recentlySuccessful && (
+          <Alert className="bg-emerald-950/50 border-emerald-800 text-emerald-100">
+            <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+            <AlertTitle className="text-emerald-300">Test créé avec succès !</AlertTitle>
+            <AlertDescription className="mt-2">
+              Vous allez être redirigé automatiquement vers la liste.<br />
+              Le nouveau test devrait apparaître avec le statut <strong className="text-emerald-300">Validé</strong> ou <strong className="text-emerald-300">On track</strong>.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Formulaire */}
         <Card className="border-none shadow-2xl bg-gradient-to-b from-card to-card/90 backdrop-blur-sm">
           <CardContent className="pt-10 pb-14 px-6 md:px-12 lg:px-16">
             <form onSubmit={handleSubmit} className="space-y-16">
@@ -366,7 +385,8 @@ export default function Create({ requirement }: Props) {
                   variant="outline"
                   size="lg"
                   className="w-full sm:w-auto"
-                  onClick={() => router.visit(route('requirement-tests.index'))}
+                  onClick={() => router.visit(route('req-testing.index'))}
+                  disabled={processing}
                 >
                   Cancel
                 </Button>

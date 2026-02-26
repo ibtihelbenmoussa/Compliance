@@ -17,8 +17,8 @@ class RequirementTestController extends Controller
 
         $query = RequirementTest::query()
             ->with([
-                'framework:id,code,name',                
-                'requirement.framework:id,code,name',    
+                'framework:id,code,name',
+                'requirement.framework:id,code,name',
                 'user:id,name',
             ])
             ->select([
@@ -44,15 +44,14 @@ class RequirementTestController extends Controller
             }
         }
 
-        // Recherche
         if ($search = trim($request->query('search', ''))) {
             $query->whereHas('requirement', function ($q) use ($search) {
                 $q->where('code', 'like', "%{$search}%")
-                  ->orWhere('title', 'like', "%{$search}%");
+                    ->orWhere('title', 'like', "%{$search}%");
             });
         }
 
-        // Statut
+        // Satut
         if ($status = $request->query('status')) {
             $query->where('status', $status);
         }
@@ -72,7 +71,7 @@ class RequirementTestController extends Controller
 
         $requirements = Requirement::query()
             ->select('id', 'code', 'title', 'frequency', 'deadline', 'framework_id')
-            ->with('framework:id,code,name') // ← pour afficher le framework dans le select
+            ->with('framework:id,code,name')
             ->orderBy('code')
             ->get();
 
@@ -87,23 +86,23 @@ class RequirementTestController extends Controller
 
         $validated = $request->validate([
             'requirement_id' => ['required', 'exists:requirements,id'],
-            'test_date'      => ['required', 'date'],
-            'status'         => ['required', 'in:compliant,non_compliant,partial,na'],
-            'comment'        => ['nullable', 'string', 'max:2000'],
-            'evidence'       => ['nullable', 'array'],
-            'evidence.*'     => ['nullable', 'string', 'max:2048'],
+            'test_date' => ['required', 'date'],
+            'status' => ['required', 'in:compliant,non_compliant,partial,na'],
+            'comment' => ['nullable', 'string', 'max:2000'],
+            'evidence' => ['nullable', 'array'],
+            'evidence.*' => ['nullable', 'string', 'max:2048'],
         ]);
 
         $requirement = Requirement::findOrFail($validated['requirement_id']);
 
         RequirementTest::create([
             'requirement_id' => $validated['requirement_id'],
-            'framework_id'   => $requirement->framework_id, // ← copie auto
-            'user_id'        => Auth::id(),
-            'test_date'      => $validated['test_date'],
-            'status'         => $validated['status'],
-            'comment'        => $validated['comment'] ?? null,
-            'evidence'       => $validated['evidence'] ?? null,
+            'framework_id' => $requirement->framework_id,
+            'user_id' => Auth::id(),
+            'test_date' => $validated['test_date'],
+            'status' => $validated['status'],
+            'comment' => $validated['comment'] ?? null,
+            'evidence' => $validated['evidence'] ?? null,
         ]);
 
         return redirect()
@@ -145,9 +144,9 @@ class RequirementTestController extends Controller
 
         $validated = $request->validate([
             'test_date' => ['required', 'date'],
-            'status'    => ['required', 'in:compliant,non_compliant,partial,na'],
-            'comment'   => ['nullable', 'string', 'max:2000'],
-            'evidence'  => ['nullable', 'array'],
+            'status' => ['required', 'in:compliant,non_compliant,partial,na'],
+            'comment' => ['nullable', 'string', 'max:2000'],
+            'evidence' => ['nullable', 'array'],
             'evidence.*' => ['nullable', 'string', 'max:2048'],
         ]);
 
@@ -188,37 +187,25 @@ class RequirementTestController extends Controller
      */
     public function storeForRequirement(Request $request, Requirement $requirement)
     {
-        $this->authorize('create', RequirementTest::class);
-
-        $validated = $request->validate([
-            'test_code'       => ['required', 'string', 'max:50', 'unique:requirement_tests,test_code'],
-            'name'            => ['required', 'string', 'max:255'],
-            'objective'       => ['required', 'string'],
-            'procedure'       => ['required', 'string'],
-            'status'          => ['required', 'in:pending,in_progress,completed'],
-            'result'          => ['required', 'in:compliant,non_compliant'],
-            'evidence'        => ['nullable', 'string'],
-            'effective_date'  => ['nullable', 'date'],
-            'efficacy'        => ['required', 'in:effective,partially_effective,ineffective'],
+        $data = $request->validate([
+            'test_code' => 'required|string|max:50|unique:requirement_tests,test_code',
+            'name' => 'required|string',
+            'objective' => 'required|string',
+            'procedure' => 'required|string',
+            'status' => 'required|string',
+            'result' => 'required|string',
+            'efficacy' => 'required|string',
+            'effective_date' => 'nullable|date',
+            'evidence' => 'nullable|string',
         ]);
 
-        RequirementTest::create([
-            'requirement_id'  => $requirement->id,
-            'framework_id'    => $requirement->framework_id,
-            'user_id'         => Auth::id(),
-            'test_code'       => $validated['test_code'],
-            'name'            => $validated['name'],
-            'objective'       => $validated['objective'],
-            'procedure'       => $validated['procedure'],
-            'status'          => $validated['status'],
-            'result'          => $validated['result'],
-            'evidence'        => $validated['evidence'],
-            'effective_date'  => $validated['effective_date'],
-            'efficacy'        => $validated['efficacy'],
-        ]);
+        $data['user_id'] = auth()->id();
+        $data['framework_id'] = $requirement->framework_id;
 
-        return redirect()
-            ->route('requirement-tests.index')
-            ->with('success', 'Test created successfully.');
+        $test = $requirement->tests()->create($data);
+
+        return redirect('/req-testing')
+            
+            ->with('success', 'Test créé avec succès !');
     }
 }

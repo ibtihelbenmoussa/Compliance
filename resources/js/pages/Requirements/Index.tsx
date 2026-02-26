@@ -542,7 +542,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
                           <div
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            className={`bg-muted/30 rounded-xl border w-[500px] flex flex-col shadow-sm min-h-[500px] transition-all
+                            className={`bg-muted/30 rounded-xl border w-[380px] flex flex-col shadow-sm min-h-[500px] transition-all
                               ${snapshot.isDraggingOver ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}
                           >
                             <div className="p-4 border-b bg-background/80 sticky top-0 backdrop-blur-sm z-10 rounded-t-xl">

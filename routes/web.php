@@ -22,7 +22,12 @@ use App\Http\Controllers\PermissionController;
 
 // Page d'accueil publique
 Route::get('/', function () {
-    return Inertia::render('welcome');
+    //return Inertia::render('welcome');
+      if (auth()->check()) {
+        return redirect()->route('organizations.select.page');
+    }
+
+    return redirect()->route('login');
 })->name('home');
 
 // Routes protégées (auth + verified)
@@ -127,6 +132,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('requirement-tests', RequirementTestController::class)
         ->only(['index', 'show', 'edit', 'update', 'destroy']);
+
+        Route::get('requirement-tests/validation', [RequirementTestController::class, 'validation'])
+    ->name('requirement-tests.validation');
 });
 
 require __DIR__ . '/settings.php';
