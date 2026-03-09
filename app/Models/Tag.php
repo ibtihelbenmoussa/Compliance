@@ -24,5 +24,14 @@ class Tag extends Model
         )->withTimestamps();
     }
 
+    public function requirments()
+{
+    return $this->belongsToMany(
+        Requirement::class,
+        'tags_requirments',
+        'requirment_id',
+        'tags_id'
+    )->withTimestamps();
+}
 
 }

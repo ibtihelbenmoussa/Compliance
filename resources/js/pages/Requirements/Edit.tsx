@@ -1,75 +1,148 @@
-import React, { useState } from 'react'
-import { Head, useForm, usePage, Link, router } from '@inertiajs/react'
+// resources/js/pages/requirements/edit.tsx
+import { useState } from 'react'
+import { Head, Link, useForm, usePage, router } from '@inertiajs/react'
+import { route } from 'ziggy-js'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
+import {
+  ChevronLeft,
+  Calendar as CalendarIcon,
+  ListTodo,
+  FileText,
+  Tag as TagIcon,
+  FileUp,
+} from 'lucide-react'
 import { format } from 'date-fns'
-import { Card, CardContent } from '@/components/ui/card'
-import { ChevronLeft, Calendar as CalendarIcon } from 'lucide-react'
 import { MultiSelect } from '@/components/ui/multi-select'
 
-type Tag = {
+interface Framework { id: number; code: string; name: string }
+interface Process { id: number; name: string }
+interface Tag { id: number; name: string }
+
+interface Requirement {
   id: number
-  name: string
+  code: string
+  title: string
+  description: string | null
+  type: string
+  status: string
+  priority: string
+  frequency: string
+  framework_id: number | null
+  process_id: number | null
+  deadline: string | null
+  completion_date: string | null
+  compliance_level: string
+  attachments: string | null
+}
+
+interface PageProps {
+  requirement: Requirement
+  frameworks: Framework[]
+  processes: Process[]
+  tags: Tag[]
+  selectedTagIds: string[]
+  flash?: { success?: string; error?: string }
+  [key: string]: any
+}
+
+// Normalise ce qu'Inertia envoie — tableau OU objet indexé → T[]
+const toArray = <T,>(val: T[] | Record<string, T> | null | undefined): T[] => {
+  if (!val) return []
+  if (Array.isArray(val)) return val
+  return Object.values(val)
 }
 
 export default function EditRequirement() {
-  const { requirement, frameworks, processes, tags, selectedTagIds } = usePage<{
-    requirement: any
-    frameworks: { id: number; code: string; name: string }[]
-    processes: { id: number; name: string }[]
-    tags: Tag[]
-    selectedTagIds: string[]
-  }>().props
+  const { props } = usePage<PageProps>()
 
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const { requirement, frameworks = [], processes = [] } = props
+
+  // Normalisation défensive des deux listes critiques
+  const tags: Tag[] = toArray(props.tags)
+  const selectedTagIds: string[] = toArray(props.selectedTagIds)
 
   const formatDateString = (date: string | null) => (date ? date.split('T')[0] : '')
 
-  const { data, setData, put, processing } = useForm({
+  const { data, setData, put, processing, errors, setError, clearErrors } = useForm({
     code: requirement.code || '',
     title: requirement.title || '',
     description: requirement.description || '',
-    type: requirement.type || 'regulatory',
-    status: requirement.status || 'active',
-    priority: requirement.priority || 'medium',
-    frequency: requirement.frequency || 'one_time',
+    type: requirement.type || '',
+    status: requirement.status || '',
+    priority: requirement.priority || '',
+    frequency: requirement.frequency || '',
     framework_id: requirement.framework_id?.toString() || '',
     process_id: requirement.process_id?.toString() || '',
-    owner_id: requirement.owner_id || '',
-    tags: selectedTagIds || [],
+    tags: selectedTagIds,
     deadline: formatDateString(requirement.deadline),
     completion_date: formatDateString(requirement.completion_date),
-    compliance_level: requirement.compliance_level || 'Mandatory',
+    compliance_level: requirement.compliance_level || '',
     attachments: requirement.attachments || '',
   })
 
-  const [deadlineDate, setDeadlineDate] = useState<Date | undefined>(
-    data.deadline ? new Date(data.deadline) : undefined
-  )
-  const [completionDate, setCompletionDate] = useState<Date | undefined>(
-    data.completion_date ? new Date(data.completion_date) : undefined
-  )
+  const [deadlineOpen, setDeadlineOpen] = useState(false)
+  const [completionOpen, setCompletionOpen] = useState(false)
+  const [flashOpen, setFlashOpen] = useState(false)
+  const [flash, setFlash] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
-  const submit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setErrorMessage(null)
+    clearErrors()
 
-    put(`/requirements/${requirement.id}`, {
+    const validationErrors: Record<string, string> = {}
+    if (!data.code.trim()) validationErrors.code = 'Code is required'
+    if (!data.title.trim()) validationErrors.title = 'Title is required'
+    if (!data.type) validationErrors.type = 'Type is required'
+    if (!data.status) validationErrors.status = 'Status is required'
+    if (!data.priority) validationErrors.priority = 'Priority is required'
+    if (!data.frequency) validationErrors.frequency = 'Frequency is required'
+    if (!data.framework_id) validationErrors.framework_id = 'Framework is required'
+    if (!data.compliance_level) validationErrors.compliance_level = 'Compliance level is required'
+
+    if (Object.keys(validationErrors).length > 0) {
+      Object.entries(validationErrors).forEach(([key, msg]) => setError(key as any, msg))
+      return
+    }
+
+    put(route('requirements.update', requirement.id), {
+      preserveScroll: true,
       onSuccess: () => {
-        // Redirection vers la liste après succès
-        router.visit('/requirements', {
+        router.visit(route('requirements.index'), {
           method: 'get',
-          preserveScroll: true,
+          preserveState: false,
+          preserveScroll: false,
         })
       },
-      onError: (errors) => {
-        setErrorMessage('Error updating requirement. Please check the form fields.')
-        console.error('Update errors:', errors)
+      onError: (err) => {
+        setFlash({ type: 'error', message: 'Error updating requirement. Please check the form fields.' })
+        setFlashOpen(true)
+        console.error('Update errors:', err)
       },
     })
   }
@@ -77,314 +150,355 @@ export default function EditRequirement() {
   return (
     <AppLayout
       breadcrumbs={[
-        { title: 'Requirements', href: '/requirements' },
+        { title: 'Requirements', href: route('requirements.index') },
         { title: 'Edit', href: '' },
       ]}
     >
       <Head title="Edit Requirement" />
 
-      <div className="space-y-12 p-6 lg:p-10">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 pb-6 border-b">
+      <Dialog open={flashOpen} onOpenChange={setFlashOpen}>
+        <DialogContent className={cn(flash?.type === 'success' ? 'border-green-600' : 'border-red-600')}>
+          <DialogHeader>
+            <DialogTitle className={cn(flash?.type === 'success' ? 'text-green-600' : 'text-red-600')}>
+              {flash?.type === 'success' ? 'Success' : 'Error'}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="py-4">{flash?.message}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFlashOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="space-y-6 p-4">
+        <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Edit Requirement</h1>
-            <p className="text-muted-foreground mt-2 text-lg">
-              Modify an existing compliance requirement
+            <p className="text-muted-foreground mt-1.5">
+              Modify <span className="font-medium text-foreground">{requirement.title}</span>
             </p>
           </div>
-
           <Button variant="outline" size="sm" asChild>
-            <Link href="/requirements">
+            <Link href={route('requirements.index')}>
               <ChevronLeft className="mr-2 h-4 w-4" />
               Back
             </Link>
           </Button>
         </div>
 
-        {/* Message d'erreur */}
-        {errorMessage && (
-          <div className="bg-red-950/40 border border-red-700 text-red-200 px-5 py-4 rounded-lg">
-            {errorMessage}
-          </div>
-        )}
+        <form onSubmit={handleSubmit} className="space-y-10">
 
-        {/* Formulaire principal */}
-        <Card className="border-none shadow-2xl bg-gradient-to-b from-card to-card/90 backdrop-blur-sm">
-          <CardContent className="pt-10 pb-14 px-6 md:px-12 lg:px-16">
-            <form onSubmit={submit} className="space-y-16">
-              {/* Basic Information */}
-              <div className="space-y-10">
-                <h2 className="text-2xl font-semibold tracking-tight border-b pb-4">
-                  Basic Information
-                </h2>
+          {/* Section 1 – Basic Information */}
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-primary/10 p-2">
+                  <ListTodo className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>Basic Information</CardTitle>
+                  <CardDescription>Required fields are marked with *</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-1.5">
-                      Code <span className="text-red-500 text-base">*</span>
-                    </label>
-                    <Input
-                      placeholder="REQ-001, ART-12, GDPR-5.1..."
-                      value={data.code}
-                      onChange={e => setData('code', e.target.value)}
-                      className="h-11"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-1.5">
-                      Title <span className="text-red-500 text-base">*</span>
-                    </label>
-                    <Input
-                      placeholder="Data Protection Impact Assessment Requirement"
-                      value={data.title}
-                      onChange={e => setData('title', e.target.value)}
-                      className="h-11"
-                    />
-                  </div>
+            <CardContent className="space-y-8 pt-2">
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="code" className="flex items-center gap-1.5">
+                    Code <span className="text-red-500 text-base">*</span>
+                  </Label>
+                  <Input
+                    id="code"
+                    placeholder="e.g. REQ-001, GDPR-Art.5.1"
+                    value={data.code}
+                    onChange={e => { setData('code', e.target.value.toUpperCase().trim()); clearErrors('code') }}
+                    className={cn('h-11', errors.code && 'border-destructive focus-visible:ring-destructive')}
+                  />
+                  {errors.code && <p className="text-sm text-destructive">{errors.code}</p>}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-1.5">
-                      Type <span className="text-red-500 text-base">*</span>
-                    </label>
-                    <Select value={data.type} onValueChange={v => setData('type', v)}>
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="regulatory">Regulatory</SelectItem>
-                        <SelectItem value="internal">Internal</SelectItem>
-                        <SelectItem value="contractual">Contractual</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="title" className="flex items-center gap-1.5">
+                    Title <span className="text-red-500 text-base">*</span>
+                  </Label>
+                  <Input
+                    id="title"
+                    placeholder="e.g. Data Protection Impact Assessment"
+                    value={data.title}
+                    onChange={e => { setData('title', e.target.value); clearErrors('title') }}
+                    className={cn('h-11', errors.title && 'border-destructive focus-visible:ring-destructive')}
+                  />
+                  {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
+                </div>
+              </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-1.5">
-                      Status <span className="text-red-500 text-base">*</span>
-                    </label>
-                    <Select value={data.status} onValueChange={v => setData('status', v)}>
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="archived">Archived</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-1.5">
-                      Priority <span className="text-red-500 text-base">*</span>
-                    </label>
-                    <Select value={data.priority} onValueChange={v => setData('priority', v)}>
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Select priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <div className="grid gap-6 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Type <span className="text-red-500">*</span></Label>
+                  <Select value={data.type} onValueChange={v => { setData('type', v); clearErrors('type') }}>
+                    <SelectTrigger className={cn('h-11', errors.type && 'border-destructive')}>
+                      <SelectValue placeholder="Select type..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="regulatory">Regulatory</SelectItem>
+                      <SelectItem value="internal">Internal</SelectItem>
+                      <SelectItem value="contractual">Contractual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.type && <p className="text-sm text-destructive mt-1.5">{errors.type}</p>}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-1.5">
-                      Frequency <span className="text-red-500 text-base">*</span>
-                    </label>
-                    <Select value={data.frequency} onValueChange={v => setData('frequency', v)}>
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Select frequency" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="one_time">One Time</SelectItem>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="quarterly">Quarterly</SelectItem>
-                        <SelectItem value="yearly">Yearly</SelectItem>
-                        <SelectItem value="continuous">Continuous</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label>Status <span className="text-red-500">*</span></Label>
+                  <Select value={data.status} onValueChange={v => { setData('status', v); clearErrors('status') }}>
+                    <SelectTrigger className={cn('h-11', errors.status && 'border-destructive')}>
+                      <SelectValue placeholder="Select status..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.status && <p className="text-sm text-destructive mt-1.5">{errors.status}</p>}
+                </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-1.5">
-                      Framework <span className="text-red-500 text-base">*</span>
-                    </label>
-                    <Select
-                      value={data.framework_id}
-                      onValueChange={v => setData('framework_id', v)}
-                    >
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Select framework" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {frameworks.map(fw => (
+                <div className="space-y-2">
+                  <Label>Priority <span className="text-red-500">*</span></Label>
+                  <Select value={data.priority} onValueChange={v => { setData('priority', v); clearErrors('priority') }}>
+                    <SelectTrigger className={cn('h-11', errors.priority && 'border-destructive')}>
+                      <SelectValue placeholder="Select priority..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.priority && <p className="text-sm text-destructive mt-1.5">{errors.priority}</p>}
+                </div>
+              </div>
+
+              <div className="grid gap-6 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Frequency <span className="text-red-500">*</span></Label>
+                  <Select value={data.frequency} onValueChange={v => { setData('frequency', v); clearErrors('frequency') }}>
+                    <SelectTrigger className={cn('h-11', errors.frequency && 'border-destructive')}>
+                      <SelectValue placeholder="Select frequency..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="one_time">One Time</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="quarterly">Quarterly</SelectItem>
+                      <SelectItem value="yearly">Yearly</SelectItem>
+                      <SelectItem value="continuous">Continuous</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.frequency && <p className="text-sm text-destructive mt-1.5">{errors.frequency}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Framework <span className="text-red-500">*</span></Label>
+                  <Select value={data.framework_id} onValueChange={v => { setData('framework_id', v); clearErrors('framework_id') }}>
+                    <SelectTrigger className={cn('h-11', errors.framework_id && 'border-destructive')}>
+                      <SelectValue placeholder="Select framework..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {toArray(frameworks).length > 0 ? (
+                        toArray(frameworks).map(fw => (
                           <SelectItem key={fw.id} value={fw.id.toString()}>
-                            {fw.code} - {fw.name}
+                            {fw.code} — {fw.name}
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                        ))
+                      ) : (
+                        <SelectItem value="disabled" disabled>No frameworks available</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {errors.framework_id && <p className="text-sm text-destructive mt-1.5">{errors.framework_id}</p>}
+                </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Process</label>
-                    <Select
-                      value={data.process_id || 'none'}
-                      onValueChange={v => setData('process_id', v === 'none' ? '' : v)}
-                    >
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Select process (optional)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {processes.map(proc => (
-                          <SelectItem key={proc.id} value={proc.id.toString()}>
-                            {proc.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label>Process (optional)</Label>
+                  <Select
+                    value={data.process_id || 'none'}
+                    onValueChange={v => setData('process_id', v === 'none' ? '' : v)}
+                  >
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None / Not applicable</SelectItem>
+                      {toArray(processes).map(proc => (
+                        <SelectItem key={proc.id} value={proc.id.toString()}>{proc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 2 – Details & Context */}
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-primary/10 p-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>Details & Context</CardTitle>
+                  <CardDescription>Detailed description and additional metadata</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-8 pt-2">
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  placeholder="Detailed explanation of the requirement, scope, applicability, responsibilities..."
+                  value={data.description}
+                  onChange={e => setData('description', e.target.value)}
+                  className="min-h-[160px] resize-y"
+                />
+              </div>
+
+              <div className="grid gap-6 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Compliance Level <span className="text-red-500">*</span></Label>
+                  <Select value={data.compliance_level} onValueChange={v => { setData('compliance_level', v); clearErrors('compliance_level') }}>
+                    <SelectTrigger className={cn('h-11', errors.compliance_level && 'border-destructive')}>
+                      <SelectValue placeholder="Select level..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Mandatory">Mandatory</SelectItem>
+                      <SelectItem value="Recommended">Recommended</SelectItem>
+                      <SelectItem value="Optional">Optional</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.compliance_level && <p className="text-sm text-destructive mt-1.5">{errors.compliance_level}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Deadline</Label>
+                  <Popover open={deadlineOpen} onOpenChange={setDeadlineOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          'w-full justify-start text-left font-normal h-11',
+                          !data.deadline && 'text-muted-foreground',
+                          errors.deadline && 'border-destructive'
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {data.deadline ? format(new Date(data.deadline), 'PPP') : 'Pick a date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={data.deadline ? new Date(data.deadline) : undefined}
+                        onSelect={date => {
+                          setData('deadline', date ? format(date, 'yyyy-MM-dd') : '')
+                          clearErrors('deadline')
+                          setDeadlineOpen(false)
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {errors.deadline && <p className="text-sm text-destructive mt-1.5">{errors.deadline}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Completion Date (optional)</Label>
+                  <Popover open={completionOpen} onOpenChange={setCompletionOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          'w-full justify-start text-left font-normal h-11',
+                          !data.completion_date && 'text-muted-foreground'
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {data.completion_date ? format(new Date(data.completion_date), 'PPP') : 'Pick a date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={data.completion_date ? new Date(data.completion_date) : undefined}
+                        onSelect={date => {
+                          setData('completion_date', date ? format(date, 'yyyy-MM-dd') : '')
+                          setCompletionOpen(false)
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
-              {/* Context & Details */}
-              <div className="space-y-10">
-                <h2 className="text-2xl font-semibold tracking-tight border-b pb-4">
-                  Context & Details
-                </h2>
+              {/* ─── Tags ─── */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <TagIcon className="h-4 w-4" />
+                  Tags
+                </Label>
 
-                <div className="space-y-4">
-                  <label className="text-sm font-medium">Description</label>
-                  <Textarea
-                    placeholder="Detailed explanation of the requirement, scope, applicability..."
-                    value={data.description}
-                    onChange={e => setData('description', e.target.value)}
-                    className="min-h-[160px] resize-y"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-1.5">
-                      Compliance Level <span className="text-red-500 text-base">*</span>
-                    </label>
-                    <Select
-                      value={data.compliance_level}
-                      onValueChange={v => setData('compliance_level', v)}
-                    >
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Select level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Mandatory">Mandatory</SelectItem>
-                        <SelectItem value="Recommended">Recommended</SelectItem>
-                        <SelectItem value="Optional">Optional</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Deadline</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full h-11 justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {deadlineDate ? format(deadlineDate, 'PPP') : 'Pick a date'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={deadlineDate}
-                          onSelect={d => {
-                            setDeadlineDate(d)
-                            setData('deadline', d ? formatDateString(d.toISOString()) : '')
-                          }}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Completion Date</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full h-11 justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {completionDate ? format(completionDate, 'PPP') : 'Optional'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={completionDate}
-                          onSelect={d => {
-                            setCompletionDate(d)
-                            setData('completion_date', d ? formatDateString(d.toISOString()) : '')
-                          }}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="text-sm font-medium">Tags</label>
-                  <MultiSelect
-                    options={tags.map(tag => ({ value: tag.id.toString(), label: tag.name }))}
-                    defaultValue={selectedTagIds}
-                    onValueChange={(values: string[]) => setData('tags', values)}
-                    placeholder="Select relevant tags..."
-                  />
-                </div>
-
-                <div className="space-y-4">
-                  <label className="text-sm font-medium">Attachments (URLs)</label>
-                  <Textarea
-                    placeholder="Paste one or more document URLs (one per line)\nExamples:\nhttps://drive.google.com/...\nhttps://company.sharepoint.com/..."
-                    value={data.attachments}
-                    onChange={e => setData('attachments', e.target.value)}
-                    className="min-h-[120px] resize-y"
-                  />
-                </div>
+                <MultiSelect
+                  options={tags.map((t) => ({
+                    value: String(t.id),
+                    label: t.name,
+                  }))}
+                  defaultValue={selectedTagIds}
+                  onValueChange={(selected) => setData('tags', selected)}
+                  placeholder="Select relevant tags..."
+                />
+                {/*  <MultiSelect
+                  options={tags.map(tag => ({
+                    value: tag.id.toString(),
+                    label: tag.name,
+                  }))}
+                  value={data.tags}
+                  onValueChange={selected => setData('tags', selected)}
+                 
+                /> */}
               </div>
 
-              {/* Actions */}
-              <div className="flex justify-end gap-4 pt-12 border-t">
-                <Button type="button" variant="outline" size="lg" asChild>
-                  <Link href="/requirements">Cancel</Link>
-                </Button>
-
-                <Button
-                  type="submit"
-                  disabled={processing}
-                  size="lg"
-                  className="min-w-[200px] font-medium"
-                >
-                  {processing ? 'Updating...' : 'Update Requirement'}
-                </Button>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <FileUp className="h-4 w-4" />
+                  Attachments (URLs)
+                </Label>
+                <Textarea
+                  placeholder="One link per line&#10;Examples:&#10;https://drive.google.com/file/...&#10;https://company.sharepoint.com/..."
+                  value={data.attachments}
+                  onChange={e => setData('attachments', e.target.value)}
+                  className="min-h-[110px] resize-y"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Supported: Google Drive, SharePoint, OneDrive links, etc.
+                </p>
               </div>
-            </form>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end gap-4 pt-6">
+            <Button type="button" variant="outline" size="lg" disabled={processing} asChild>
+              <Link href={route('requirements.index')}>Cancel</Link>
+            </Button>
+            <Button type="submit" size="lg" disabled={processing} className="min-w-[200px]">
+              {processing ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </form>
       </div>
     </AppLayout>
   )

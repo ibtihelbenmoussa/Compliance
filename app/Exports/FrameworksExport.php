@@ -51,21 +51,21 @@ class FrameworksExport implements FromCollection, WithHeadings, WithMapping
     /**
      * Map each row (custom formatting) - sans ID et Created At
      */
-    public function map($framework): array
-    {
-        return [
-            $framework->code,
-            $framework->name,
-            $framework->version ?? '-',
-            ucfirst($framework->type),
-            $framework->publisher ?? '-',
-            $framework->jurisdiction?->name ?? '-',
-            ucfirst($framework->status),
-            implode(', ', $framework->tags_names ?? []),
-            $framework->scope ?? '-',
-            $framework->release_date ? $framework->release_date->format('Y-m-d') : '-',
-            $framework->effective_date ? $framework->effective_date->format('Y-m-d') : '-',
-            $framework->retired_date ? $framework->retired_date->format('Y-m-d') : '-',
-        ];
-    }
+   public function map($framework): array
+{
+    return [
+        $framework->code,
+        $framework->name,
+        $framework->version ?? '-',
+        ucfirst($framework->type),
+        $framework->publisher ?? '-',
+        $framework->jurisdictions->pluck('name')->implode(', ') ?: '-',
+        ucfirst($framework->status),
+        $framework->tags->pluck('name')->implode(', ') ?: '-',
+        $framework->scope ?? '-',
+        $framework->release_date ? $framework->release_date->format('Y-m-d') : '-',
+        $framework->effective_date ? $framework->effective_date->format('Y-m-d') : '-',
+        $framework->retired_date ? $framework->retired_date->format('Y-m-d') : '-',
+    ];
+}
 }

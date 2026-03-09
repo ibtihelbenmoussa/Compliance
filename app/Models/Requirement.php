@@ -30,7 +30,7 @@ class Requirement extends Model
     // ];
 
     protected $casts = [
-        'tags' => 'array',
+       // 'tags' => 'array',
         'deadline' => 'date',
         'completion_date' => 'date',
     ];
@@ -46,5 +46,15 @@ class Requirement extends Model
 public function tests()
 {
     return $this->hasMany(RequirementTest::class);
+}
+
+public function tags()
+{
+    return $this->belongsToMany(
+        Tag::class,
+        'tags_requirments',
+        'requirment_id',
+        'tags_id'
+    )->withTimestamps();
 }
 }

@@ -31,6 +31,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+
+// ─── ADD THESE ───────────────────────────────────────────────
 import {
   Select,
   SelectContent,
@@ -38,6 +40,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+// ──────────────────────────────────────────────────────────────
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { Separator } from '@/components/ui/separator'
 import {
   Key,
   BookOpen,
@@ -59,6 +72,7 @@ import {
   RefreshCw,
   GripVertical,
   ListFilter,
+  Download,
 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PaginatedData } from '@/types'
@@ -67,11 +81,8 @@ import {
   Droppable,
   Draggable,
   type DropResult,
-  type DroppableProvided,
-  type DroppableStateSnapshot,
-  type DraggableProvided,
-  type DraggableStateSnapshot,
 } from '@hello-pangea/dnd'
+import { cn } from '@/lib/utils'
 
 interface Requirement {
   id: number
@@ -98,21 +109,32 @@ interface RequirementsIndexProps {
 }
 
 type GroupBy = 'status' | 'priority'
+type ViewMode = 'table' | 'kanban'
+
+const statusColors: Record<string, { bg: string; border: string; text: string }> = {
+  active: { bg: 'bg-emerald-950/40', border: 'border-emerald-700', text: 'text-emerald-400' },
+  draft: { bg: 'bg-amber-950/40', border: 'border-amber-700', text: 'text-amber-400' },
+  archived: { bg: 'bg-slate-950/50', border: 'border-slate-700', text: 'text-slate-400' },
+}
+
+const priorityColors: Record<string, { bg: string; border: string; text: string }> = {
+  high: { bg: 'bg-red-950/40', border: 'border-red-700', text: 'text-red-400' },
+  medium: { bg: 'bg-amber-950/40', border: 'border-amber-700', text: 'text-amber-400' },
+  low: { bg: 'bg-emerald-950/40', border: 'border-emerald-700', text: 'text-emerald-400' },
+}
 
 export default function RequirementsIndex({ requirements }: RequirementsIndexProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [requirementToDelete, setRequirementToDelete] = useState<Requirement | null>(null)
   const [exportLoading, setExportLoading] = useState(false)
-  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table')
+  const [viewMode, setViewMode] = useState<ViewMode>('table')
   const [groupBy, setGroupBy] = useState<GroupBy>('status')
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 300)
-    return () => clearTimeout(timer)
+    setIsMounted(true)
   }, [])
 
-  // Calcul des stats par priority
   const priorityStats = useMemo(() => {
     const data = requirements.data
     const total = data.length
@@ -124,14 +146,13 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
       total,
       items: [
         { label: 'Total', count: total, percent: 100, color: 'blue', icon: Building2 },
-        { label: 'Low', count: low, percent: total > 0 ? Math.round((low / total) * 100) : 0, color: 'emerald', icon: CheckCircle2 },
-        { label: 'Medium', count: medium, percent: total > 0 ? Math.round((medium / total) * 100) : 0, color: 'amber', icon: AlertTriangle },
-        { label: 'High', count: high, percent: total > 0 ? Math.round((high / total) * 100) : 0, color: 'red', icon: AlertTriangle },
+        { label: 'Low', count: low, percent: total ? Math.round((low / total) * 100) : 0, color: 'emerald', icon: CheckCircle2 },
+        { label: 'Medium', count: medium, percent: total ? Math.round((medium / total) * 100) : 0, color: 'amber', icon: AlertTriangle },
+        { label: 'High', count: high, percent: total ? Math.round((high / total) * 100) : 0, color: 'red', icon: AlertTriangle },
       ]
     }
   }, [requirements.data])
 
-  // Calcul des stats par status
   const statusStats = useMemo(() => {
     const data = requirements.data
     const total = data.length
@@ -143,14 +164,13 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
       total,
       items: [
         { label: 'Total', count: total, percent: 100, color: 'blue', icon: Building2 },
-        { label: 'Active', count: active, percent: total > 0 ? Math.round((active / total) * 100) : 0, color: 'emerald', icon: CheckCircle2 },
-        { label: 'Draft', count: draft, percent: total > 0 ? Math.round((draft / total) * 100) : 0, color: 'amber', icon: FileText },
-        { label: 'Archived', count: archived, percent: total > 0 ? Math.round((archived / total) * 100) : 0, color: 'slate', icon: Archive },
+        { label: 'Active', count: active, percent: total ? Math.round((active / total) * 100) : 0, color: 'emerald', icon: CheckCircle2 },
+        { label: 'Draft', count: draft, percent: total ? Math.round((draft / total) * 100) : 0, color: 'amber', icon: FileText },
+        { label: 'Archived', count: archived, percent: total ? Math.round((archived / total) * 100) : 0, color: 'slate', icon: Archive },
       ]
     }
   }, [requirements.data])
 
-  // Sélection des stats selon le groupBy actuel
   const currentStats = groupBy === 'status' ? statusStats : priorityStats
 
   const handleExport = async () => {
@@ -180,7 +200,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
 
   const groupedData = useMemo(() => {
     return requirements.data.reduce((acc, req) => {
-      const key = (req[groupBy] || 'unknown').toLowerCase()
+      const key = (req[groupBy]?.toLowerCase() ?? 'other')
       acc[key] = acc[key] || []
       acc[key].push(req)
       return acc
@@ -189,7 +209,12 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
 
   const groupOrder = groupBy === 'status'
     ? ['active', 'draft', 'archived']
-    : ['low', 'medium', 'high']
+    : ['high', 'medium', 'low']
+
+  const getGroupTitle = (key: string) => {
+    if (key === 'other') return 'Other'
+    return key.charAt(0).toUpperCase() + key.slice(1)
+  }
 
   const statusOptions: FacetedFilterOption[] = [
     { label: 'Active', value: 'active', icon: CheckCircle2 },
@@ -199,9 +224,9 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
 
   const priorityOptions: SelectOption[] = [
     { label: 'All', value: 'all' },
-    { label: 'Low', value: 'low' },
-    { label: 'Medium', value: 'medium' },
     { label: 'High', value: 'high' },
+    { label: 'Medium', value: 'medium' },
+    { label: 'Low', value: 'low' },
   ]
 
   const columns: ColumnDef<Requirement>[] = [
@@ -238,7 +263,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
         </div>
       ),
       cell: ({ row }) => (
-        <Badge variant="outline" className="capitalize border-gray-600 text-white bg-gray-800/30">
+        <Badge variant="outline" className="capitalize">
           {row.getValue('type')}
         </Badge>
       ),
@@ -252,20 +277,11 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
         </div>
       ),
       cell: ({ row }) => {
-        const status = (row.getValue('status') as string)?.toLowerCase() || ''
-        const variants: Record<string, string> = {
-          active: 'border-emerald-500 bg-emerald-900/30 text-white',
-          draft: 'border-amber-500 bg-amber-900/30 text-white',
-          archived: 'border-slate-500 bg-slate-800/40 text-white',
-        }
-        const style = variants[status] || 'border-gray-600 bg-gray-800/30 text-white'
-
+        const status = (row.getValue('status') as string)?.toLowerCase() || 'other'
+        const { bg, border, text } = statusColors[status] || statusColors.archived
         return (
-          <Badge
-            variant="outline"
-            className={`capitalize border font-medium px-2.5 py-0.5 ${style}`}
-          >
-            {status ? status.charAt(0).toUpperCase() + status.slice(1) : '—'}
+          <Badge variant="outline" className={`capitalize ${bg} ${border} ${text}`}>
+            {status.charAt(0).toUpperCase() + status.slice(1)}
           </Badge>
         )
       },
@@ -279,20 +295,11 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
         </div>
       ),
       cell: ({ row }) => {
-        const priority = (row.getValue('priority') as string)?.toLowerCase() || ''
-        const variants: Record<string, string> = {
-          high: 'border-red-500 bg-red-900/35 text-white',
-          medium: 'border-amber-500 bg-amber-900/30 text-white',
-          low: 'border-emerald-500 bg-emerald-900/30 text-white',
-        }
-        const style = variants[priority] || 'border-gray-600 bg-gray-800/30 text-white'
-
+        const priority = (row.getValue('priority') as string)?.toLowerCase() || 'other'
+        const { bg, border, text } = priorityColors[priority] || priorityColors.low
         return (
-          <Badge
-            variant="outline"
-            className={`capitalize border font-medium px-2.5 py-0.5 ${style}`}
-          >
-            {priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : '—'}
+          <Badge variant="outline" className={`capitalize ${bg} ${border} ${text}`}>
+            {priority.charAt(0).toUpperCase() + priority.slice(1)}
           </Badge>
         )
       },
@@ -306,7 +313,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
         </div>
       ),
       cell: ({ row }) => (
-        <Badge variant="outline" className="border-gray-600 text-white bg-gray-800/30">
+        <Badge variant="outline">
           {row.getValue('frequency') ?? '—'}
         </Badge>
       ),
@@ -334,15 +341,18 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
       ),
       cell: ({ row }) => {
         const tags = row.original.tags || []
-        if (tags.length === 0) return <span className="text-muted-foreground text-xs">—</span>
+
+        if (tags.length === 0)
+          return <span className="text-muted-foreground text-xs">—</span>
 
         return (
-          <div className="flex flex-wrap gap-1 max-w-[200px]">
+          <div className="flex flex-wrap gap-1">
             {tags.slice(0, 3).map((tag, i) => (
-              <Badge key={i} variant="outline" className="text-xs border-gray-600 text-white bg-gray-800/30">
-                {tag}
+              <Badge key={tag.id} variant="secondary" className="text-xs">
+                {tag.name}
               </Badge>
             ))}
+
             {tags.length > 3 && (
               <Badge variant="secondary" className="text-xs">
                 +{tags.length - 3}
@@ -426,115 +436,148 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
     <AppLayout>
       <Head title="Requirements" />
 
-      <div className="space-y-6 p-6">
+      <div className="container mx-auto space-y-6 py-6 px-4 md:px-6 lg:px-8">
+
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Requirements</h1>
-            <p className="text-muted-foreground">Manage compliance requirements</p>
+            <p className="text-muted-foreground mt-1.5">
+              Track and manage your compliance requirements
+            </p>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button onClick={() => router.visit('/requirements/create')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Requirement
+          <div className="flex flex-wrap items-center gap-3">
+            <Button asChild>
+              <Link href="/requirements/create">
+                <Plus className="mr-2 h-4 w-4" />
+                New Requirement
+              </Link>
             </Button>
 
-            <div className="border rounded-md inline-flex bg-muted/40">
-              <Button
-                variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="rounded-r-none px-4"
-                onClick={() => setViewMode('table')}
-              >
-                <TableIcon className="mr-1.5 h-4 w-4" />
-                Table
-              </Button>
-              <Button
-                variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="rounded-l-none border-l-0 px-4"
-                onClick={() => setViewMode('kanban')}
-              >
-                <LayoutGrid className="mr-1.5 h-4 w-4" />
-                Board
-              </Button>
-            </div>
+            {/* Uncomment if you want the export button visible */}
+            {/* <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleExport}
+                    disabled={exportLoading}
+                  >
+                    {exportLoading ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Export to Excel</TooltipContent>
+              </Tooltip>
+            </TooltipProvider> */}
+
+            <Tabs
+              value={viewMode}
+              onValueChange={(v) => setViewMode(v as ViewMode)}
+              className="hidden sm:block"
+            >
+              <TabsList className="grid w-44 grid-cols-2">
+                <TabsTrigger value="table">
+                  <TableIcon className="mr-2 h-4 w-4" />
+                  Table
+                </TabsTrigger>
+                <TabsTrigger value="kanban">
+                  <LayoutGrid className="mr-2 h-4 w-4" />
+                  Board
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
         </div>
 
-        {/* Statistics Cards – dynamiques selon groupBy */}
-        <div className="grid gap-4 md:grid-cols-4">
-          {currentStats.items.map((stat, idx) => (
-            <div
+        {/* Stats */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {currentStats.items.map((stat, i) => (
+            <Card
               key={stat.label}
-              className="rounded-xl border bg-card p-6 hover:shadow-xl transition-all group hover:-translate-y-1 hover:scale-[1.02] hover:shadow-2xl duration-300 ease-out"
+              className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-                  <p className={`text-4xl font-bold ${idx === 0 ? '' : `text-${stat.color}-600`}`}>
-                    {stat.count}
-                  </p>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <stat.icon className="h-4 w-4" />
+                  {stat.label}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">
+                  {stat.count}
+                  {i > 0 && (
+                    <span className="ml-2 text-base font-normal text-muted-foreground">
+                      ({stat.percent}%)
+                    </span>
+                  )}
                 </div>
-                <stat.icon className={`h-10 w-10 text-${stat.color}-500 opacity-80 group-hover:opacity-100 transition-opacity`} />
-              </div>
-              <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className={`h-full bg-${stat.color}-500 rounded-full transition-all duration-1500 ease-out`}
-                  style={{ width: isMounted ? `${stat.percent}%` : '0%' }}
-                />
-              </div>
-              {idx > 0 && (
-                <p className="text-xs text-muted-foreground mt-1 text-right">
-                  {isMounted ? stat.percent : 0}%
-                </p>
-              )}
-            </div>
+                <div className="mt-3 h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-1000 ease-out bg-${stat.color}-600`}
+                    style={{ width: isMounted ? `${stat.percent}%` : '0%' }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
 
-        {/* Main Content */}
+        <Separator className="my-6" />
+
         {viewMode === 'table' ? (
           <ServerDataTable
             columns={columns}
             data={requirements}
-            searchPlaceholder="Search by code or title..."
+            searchPlaceholder="Search code, title, tags..."
             onExport={handleExport}
             exportLoading={exportLoading}
             filters={
               <>
                 <DataTableFacetedFilter filterKey="status" title="Status" options={statusOptions} />
-                <DataTableSelectFilter filterKey="priority" title="Priority" placeholder="All priorities" options={priorityOptions} />
+                <DataTableSelectFilter
+                  filterKey="priority"
+                  title="Priority"
+                  placeholder="All priorities"
+                  options={priorityOptions}
+                />
               </>
             }
             initialState={{ columnPinning: { right: ['actions'] } }}
           />
         ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-end">
-              <div className="flex items-center gap-2">
-                <ListFilter className="h-4 w-4 text-muted-foreground" />
-                <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Group by..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="status">By Status</SelectItem>
-                    <SelectItem value="priority">By Priority</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <h2 className="text-lg font-semibold tracking-tight">
+                {groupBy === 'status' ? 'Status Board' : 'Priority Board'}
+              </h2>
+
+              <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+                <SelectTrigger className="w-48">
+                  <ListFilter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Group by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="status">Group by Status</SelectItem>
+                  <SelectItem value="priority">Group by Priority</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <DragDropContext onDragEnd={onDragEnd}>
-              <div className="overflow-x-auto pb-8">
-                <div className="flex gap-6 min-w-max">
+              <div className="overflow-x-auto pb-6 scrollbar-thin">
+                <div className="grid grid-flow-col auto-cols-[minmax(320px,1fr)] gap-5 lg:gap-6">
                   {groupOrder.map((key) => {
                     const items = groupedData[key] || []
-                    const title = key === 'unknown'
-                      ? 'Unknown'
-                      : key.charAt(0).toUpperCase() + key.slice(1)
+                    const color =
+                      groupBy === 'status'
+                        ? statusColors[key] || statusColors.archived
+                        : priorityColors[key] || priorityColors.low
 
                     return (
                       <Droppable droppableId={key} key={key}>
@@ -542,103 +585,124 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
                           <div
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            className={`bg-muted/30 rounded-xl border w-[380px] flex flex-col shadow-sm min-h-[500px] transition-all
-                              ${snapshot.isDraggingOver ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}
+                            className={cn(
+                              "flex flex-col min-w-[320px] rounded-xl border bg-gradient-to-b from-card/80 to-card/40 shadow-sm transition-all duration-200",
+                              snapshot.isDraggingOver && "ring-2 ring-primary/50 shadow-xl"
+                            )}
                           >
-                            <div className="p-4 border-b bg-background/80 sticky top-0 backdrop-blur-sm z-10 rounded-t-xl">
-                              <div className="flex items-center justify-between">
-                                <h3 className="font-semibold text-lg">{title}</h3>
-                                <Badge variant="secondary">{items.length}</Badge>
-                              </div>
+                            <div
+                              className={cn(
+                                "px-5 py-4 rounded-t-xl border-b font-medium text-lg flex items-center justify-between",
+                                color.bg,
+                                color.border,
+                                "border-b-2"
+                              )}
+                            >
+                              <span>{getGroupTitle(key)}</span>
+                              <Badge variant="outline" className="bg-background/70">
+                                {items.length}
+                              </Badge>
                             </div>
 
-                            <div className="p-4 flex-1 space-y-4 overflow-y-auto">
+                            <div className="p-4 flex-1 space-y-4 min-h-[500px]">
                               {items.length === 0 ? (
-                                <div className="text-center text-muted-foreground py-12 italic">
-                                  No requirements here
+                                <div className="h-full flex items-center justify-center text-muted-foreground/70 italic py-12">
+                                  Empty column
                                 </div>
                               ) : (
-                                items.map((req, index) => (
-                                  <Draggable key={req.id} draggableId={String(req.id)} index={index}>
-                                    {(provided, snapshot) => (
-                                      <div
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        className={`bg-card border rounded-lg p-4 shadow transition-all
-                                          ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-primary scale-[1.02]' : 'hover:shadow-md'}`}
+                                items.map((req, idx) => (
+                                  <Draggable key={req.id} draggableId={String(req.id)} index={idx}>
+                                    {(dragProvided, dragSnapshot) => (
+                                      <Card
+                                        ref={dragProvided.innerRef}
+                                        {...dragProvided.draggableProps}
+                                        className={cn(
+                                          "transition-all duration-200 cursor-grab active:cursor-grabbing",
+                                          dragSnapshot.isDragging
+                                            ? "shadow-2xl ring-2 ring-primary/60 scale-[1.02]"
+                                            : "hover:shadow-md hover:ring-1 hover:ring-primary/30"
+                                        )}
                                       >
-                                        <div
-                                          {...provided.dragHandleProps}
-                                          className="cursor-grab active:cursor-grabbing mb-3 inline-block"
-                                        >
-                                          <GripVertical className="h-5 w-5 text-muted-foreground hover:text-foreground" />
-                                        </div>
+                                        <CardContent className="p-4 space-y-3">
+                                          <div className="flex items-start justify-between gap-3">
+                                            <div {...dragProvided.dragHandleProps}>
+                                              <GripVertical className="h-5 w-5 text-muted-foreground/70 hover:text-foreground transition-colors" />
+                                            </div>
 
-                                        <div
-                                          className="cursor-pointer group"
-                                          onClick={() => router.visit(`/requirements/${req.id}`)}
-                                        >
-                                          <div className="font-medium group-hover:underline mb-1">
-                                            {req.code} — {req.title}
+                                            <div className="flex-1 min-w-0">
+                                              <div className="font-medium leading-tight mb-1.5">
+                                                {req.code} — {req.title}
+                                              </div>
+                                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                                {req.description || 'No description provided'}
+                                              </p>
+                                            </div>
                                           </div>
 
-                                          <div className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                                            {req.description || 'No description'}
-                                          </div>
-
-                                          <div className="flex flex-wrap gap-2">
-                                            <Badge
-                                              variant="outline"
-                                              className="text-xs capitalize border-gray-600 text-white bg-gray-800/30"
-                                            >
+                                          <div className="flex flex-wrap gap-2 pt-2">
+                                            <Badge variant="outline" className="text-xs">
                                               {req.type}
                                             </Badge>
 
                                             <Badge
                                               variant="outline"
-                                              className={`text-xs px-2.5 py-0.5 font-medium border text-white ${
-                                                req.priority?.toLowerCase() === 'high'
-                                                  ? 'border-red-500 bg-red-900/35'
-                                                  : req.priority?.toLowerCase() === 'medium'
-                                                  ? 'border-amber-500 bg-amber-900/30'
-                                                  : req.priority?.toLowerCase() === 'low'
-                                                  ? 'border-emerald-500 bg-emerald-900/30'
-                                                  : 'border-gray-600 bg-gray-800/30'
-                                              }`}
+                                              className={cn(
+                                                "text-xs",
+                                                priorityColors[req.priority?.toLowerCase() as keyof typeof priorityColors]?.text ||
+                                                'text-muted-foreground'
+                                              )}
                                             >
                                               {req.priority?.toUpperCase() || '—'}
                                             </Badge>
 
                                             {req.frequency && (
-                                              <Badge
-                                                variant="outline"
-                                                className="text-xs border-gray-600 text-white bg-gray-800/30"
-                                              >
+                                              <Badge variant="outline" className="text-xs">
                                                 {req.frequency.replace('_', ' ')}
                                               </Badge>
                                             )}
                                           </div>
 
                                           {req.tags?.length ? (
-                                            <div className="flex flex-wrap gap-1 mt-3">
-                                              {req.tags.slice(0, 3).map((tag, i) => (
-                                                <Badge
-                                                  key={i}
-                                                  variant="outline"
-                                                  className="text-xs border-gray-600 text-white bg-gray-800/30"
-                                                >
+                                            <div className="flex flex-wrap gap-1.5 pt-1">
+                                              {req.tags.slice(0, 4).map((tag, i) => (
+                                                <Badge key={i} variant="secondary" className="text-xs">
                                                   {tag}
                                                 </Badge>
                                               ))}
-                                              {req.tags.length > 3 && (
+                                              {req.tags.length > 4 && (
                                                 <Badge variant="secondary" className="text-xs">
-                                                  +{req.tags.length - 3}
+                                                  +{req.tags.length - 4}
                                                 </Badge>
                                               )}
                                             </div>
                                           ) : null}
-                                        </div>
-                                      </div>
+
+                                          <div className="pt-3 flex gap-2">
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="flex-1 h-8 text-xs"
+                                              asChild
+                                            >
+                                              <Link href={`/requirements/${req.id}`}>
+                                                <Eye className="mr-1.5 h-3.5 w-3.5" />
+                                                View
+                                              </Link>
+                                            </Button>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="flex-1 h-8 text-xs"
+                                              asChild
+                                            >
+                                              <Link href={`/requirements/${req.id}/edit`}>
+                                                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                                                Edit
+                                              </Link>
+                                            </Button>
+                                          </div>
+                                        </CardContent>
+                                      </Card>
                                     )}
                                   </Draggable>
                                 ))
