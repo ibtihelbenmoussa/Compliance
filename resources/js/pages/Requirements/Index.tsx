@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
+
 import { Head, Link, router } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { ServerDataTable } from '@/components/server-data-table'
@@ -31,8 +32,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-
-// ─── ADD THESE ───────────────────────────────────────────────
 import {
   Select,
   SelectContent,
@@ -40,16 +39,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-// ──────────────────────────────────────────────────────────────
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
 import {
   Key,
@@ -84,6 +75,12 @@ import {
 } from '@hello-pangea/dnd'
 import { cn } from '@/lib/utils'
 
+interface TagItem {
+  id: number
+  name: string
+  // pivot?: Record<string, any> // if needed
+}
+
 interface Requirement {
   id: number
   code: string
@@ -92,10 +89,10 @@ interface Requirement {
   type: string
   status: string
   priority: string
-  frequency: string
+  frequency?: string | null
   framework?: { code: string; name: string } | null
   process?: { name: string } | null
-  tags?: string[]
+  tags?: TagItem[]
   deadline?: string | null
   completion_date?: string | null
   compliance_level: string
@@ -135,24 +132,6 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
     setIsMounted(true)
   }, [])
 
-  const priorityStats = useMemo(() => {
-    const data = requirements.data
-    const total = data.length
-    const low = data.filter(r => r.priority?.toLowerCase() === 'low').length
-    const medium = data.filter(r => r.priority?.toLowerCase() === 'medium').length
-    const high = data.filter(r => r.priority?.toLowerCase() === 'high').length
-
-    return {
-      total,
-      items: [
-        { label: 'Total', count: total, percent: 100, color: 'blue', icon: Building2 },
-        { label: 'Low', count: low, percent: total ? Math.round((low / total) * 100) : 0, color: 'emerald', icon: CheckCircle2 },
-        { label: 'Medium', count: medium, percent: total ? Math.round((medium / total) * 100) : 0, color: 'amber', icon: AlertTriangle },
-        { label: 'High', count: high, percent: total ? Math.round((high / total) * 100) : 0, color: 'red', icon: AlertTriangle },
-      ]
-    }
-  }, [requirements.data])
-
   const statusStats = useMemo(() => {
     const data = requirements.data
     const total = data.length
@@ -167,7 +146,25 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
         { label: 'Active', count: active, percent: total ? Math.round((active / total) * 100) : 0, color: 'emerald', icon: CheckCircle2 },
         { label: 'Draft', count: draft, percent: total ? Math.round((draft / total) * 100) : 0, color: 'amber', icon: FileText },
         { label: 'Archived', count: archived, percent: total ? Math.round((archived / total) * 100) : 0, color: 'slate', icon: Archive },
-      ]
+      ],
+    }
+  }, [requirements.data])
+
+  const priorityStats = useMemo(() => {
+    const data = requirements.data
+    const total = data.length
+    const high = data.filter(r => r.priority?.toLowerCase() === 'high').length
+    const medium = data.filter(r => r.priority?.toLowerCase() === 'medium').length
+    const low = data.filter(r => r.priority?.toLowerCase() === 'low').length
+
+    return {
+      total,
+      items: [
+        { label: 'Total', count: total, percent: 100, color: 'blue', icon: Building2 },
+        { label: 'High', count: high, percent: total ? Math.round((high / total) * 100) : 0, color: 'red', icon: AlertTriangle },
+        { label: 'Medium', count: medium, percent: total ? Math.round((medium / total) * 100) : 0, color: 'amber', icon: AlertTriangle },
+        { label: 'Low', count: low, percent: total ? Math.round((low / total) * 100) : 0, color: 'emerald', icon: CheckCircle2 },
+      ],
     }
   }, [requirements.data])
 
@@ -201,15 +198,15 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
   const groupedData = useMemo(() => {
     return requirements.data.reduce((acc, req) => {
       const key = (req[groupBy]?.toLowerCase() ?? 'other')
-      acc[key] = acc[key] || []
+      if (!acc[key]) acc[key] = []
       acc[key].push(req)
       return acc
     }, {} as Record<string, Requirement[]>)
   }, [requirements.data, groupBy])
 
   const groupOrder = groupBy === 'status'
-    ? ['active', 'draft', 'archived']
-    : ['high', 'medium', 'low']
+    ? ['active', 'draft', 'archived', 'other']
+    : ['high', 'medium', 'low', 'other']
 
   const getGroupTitle = (key: string) => {
     if (key === 'other') return 'Other'
@@ -264,7 +261,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
       ),
       cell: ({ row }) => (
         <Badge variant="outline" className="capitalize">
-          {row.getValue('type')}
+          {(row.getValue('type') as string) || '—'}
         </Badge>
       ),
     },
@@ -280,7 +277,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
         const status = (row.getValue('status') as string)?.toLowerCase() || 'other'
         const { bg, border, text } = statusColors[status] || statusColors.archived
         return (
-          <Badge variant="outline" className={`capitalize ${bg} ${border} ${text}`}>
+          <Badge variant="outline" className={cn('capitalize', bg, border, text)}>
             {status.charAt(0).toUpperCase() + status.slice(1)}
           </Badge>
         )
@@ -298,7 +295,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
         const priority = (row.getValue('priority') as string)?.toLowerCase() || 'other'
         const { bg, border, text } = priorityColors[priority] || priorityColors.low
         return (
-          <Badge variant="outline" className={`capitalize ${bg} ${border} ${text}`}>
+          <Badge variant="outline" className={cn('capitalize', bg, border, text)}>
             {priority.charAt(0).toUpperCase() + priority.slice(1)}
           </Badge>
         )
@@ -314,7 +311,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
       ),
       cell: ({ row }) => (
         <Badge variant="outline">
-          {row.getValue('frequency') ?? '—'}
+          {(row.getValue('frequency') as string) ?? '—'}
         </Badge>
       ),
     },
@@ -328,7 +325,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
       ),
       cell: ({ row }) => {
         const fw = row.original.framework
-        return fw ? `${fw.code} - ${fw.name}` : '—'
+        return fw ? `${fw.code} — ${fw.name}` : '—'
       },
     },
     {
@@ -340,19 +337,19 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
         </div>
       ),
       cell: ({ row }) => {
-        const tags = row.original.tags || []
+        const tags = row.original.tags ?? []
 
-        if (tags.length === 0)
+        if (tags.length === 0) {
           return <span className="text-muted-foreground text-xs">—</span>
+        }
 
         return (
           <div className="flex flex-wrap gap-1">
-            {tags.slice(0, 3).map((tag, i) => (
+            {tags.slice(0, 3).map((tag) => (
               <Badge key={tag.id} variant="secondary" className="text-xs">
                 {tag.name}
               </Badge>
             ))}
-
             {tags.length > 3 && (
               <Badge variant="secondary" className="text-xs">
                 +{tags.length - 3}
@@ -412,7 +409,6 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
 
   const onDragEnd = (result: DropResult) => {
     const { source, destination, draggableId } = result
-
     if (!destination) return
     if (source.droppableId === destination.droppableId && source.index === destination.index) return
 
@@ -424,11 +420,9 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
       preserveState: true,
       preserveScroll: true,
       onSuccess: () => {
-        // toast.success("Requirement moved successfully")
+        // toast.success("Requirement updated")
       },
-      onError: (errors) => {
-        console.error('Failed to move requirement', errors)
-      },
+      onError: (errors) => console.error('Update failed', errors),
     })
   }
 
@@ -437,7 +431,6 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
       <Head title="Requirements" />
 
       <div className="container mx-auto space-y-6 py-6 px-4 md:px-6 lg:px-8">
-
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
           <div>
@@ -454,27 +447,6 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
                 New Requirement
               </Link>
             </Button>
-
-            {/* Uncomment if you want the export button visible */}
-            {/* <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleExport}
-                    disabled={exportLoading}
-                  >
-                    {exportLoading ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Export to Excel</TooltipContent>
-              </Tooltip>
-            </TooltipProvider> */}
 
             <Tabs
               value={viewMode}
@@ -586,16 +558,16 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
                             ref={provided.innerRef}
                             {...provided.droppableProps}
                             className={cn(
-                              "flex flex-col min-w-[320px] rounded-xl border bg-gradient-to-b from-card/80 to-card/40 shadow-sm transition-all duration-200",
-                              snapshot.isDraggingOver && "ring-2 ring-primary/50 shadow-xl"
+                              'flex flex-col min-w-[320px] rounded-xl border bg-gradient-to-b from-card/80 to-card/40 shadow-sm transition-all duration-200',
+                              snapshot.isDraggingOver && 'ring-2 ring-primary/50 shadow-xl'
                             )}
                           >
                             <div
                               className={cn(
-                                "px-5 py-4 rounded-t-xl border-b font-medium text-lg flex items-center justify-between",
+                                'px-5 py-4 rounded-t-xl border-b font-medium text-lg flex items-center justify-between',
                                 color.bg,
                                 color.border,
-                                "border-b-2"
+                                'border-b-2'
                               )}
                             >
                               <span>{getGroupTitle(key)}</span>
@@ -617,10 +589,10 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
                                         ref={dragProvided.innerRef}
                                         {...dragProvided.draggableProps}
                                         className={cn(
-                                          "transition-all duration-200 cursor-grab active:cursor-grabbing",
+                                          'transition-all duration-200 cursor-grab active:cursor-grabbing',
                                           dragSnapshot.isDragging
-                                            ? "shadow-2xl ring-2 ring-primary/60 scale-[1.02]"
-                                            : "hover:shadow-md hover:ring-1 hover:ring-primary/30"
+                                            ? 'shadow-2xl ring-2 ring-primary/60 scale-[1.02]'
+                                            : 'hover:shadow-md hover:ring-1 hover:ring-primary/30'
                                         )}
                                       >
                                         <CardContent className="p-4 space-y-3">
@@ -641,20 +613,18 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
 
                                           <div className="flex flex-wrap gap-2 pt-2">
                                             <Badge variant="outline" className="text-xs">
-                                              {req.type}
+                                              {req.type || '—'}
                                             </Badge>
-
                                             <Badge
                                               variant="outline"
                                               className={cn(
-                                                "text-xs",
-                                                priorityColors[req.priority?.toLowerCase() as keyof typeof priorityColors]?.text ||
-                                                'text-muted-foreground'
+                                                'text-xs',
+                                                priorityColors[req.priority?.toLowerCase() ?? 'other']?.text ||
+                                                  'text-muted-foreground'
                                               )}
                                             >
                                               {req.priority?.toUpperCase() || '—'}
                                             </Badge>
-
                                             {req.frequency && (
                                               <Badge variant="outline" className="text-xs">
                                                 {req.frequency.replace('_', ' ')}
@@ -664,9 +634,9 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
 
                                           {req.tags?.length ? (
                                             <div className="flex flex-wrap gap-1.5 pt-1">
-                                              {req.tags.slice(0, 4).map((tag, i) => (
-                                                <Badge key={i} variant="secondary" className="text-xs">
-                                                  {tag}
+                                              {req.tags.slice(0, 4).map((tag) => (
+                                                <Badge key={tag.id} variant="secondary" className="text-xs">
+                                                  {tag.name}
                                                 </Badge>
                                               ))}
                                               {req.tags.length > 4 && (

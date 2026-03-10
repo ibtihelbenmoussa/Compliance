@@ -20,7 +20,7 @@ import {
   FileText,
   RefreshCw,
   Plus,
-  CheckCircle2,
+  Eye,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { enUS } from 'date-fns/locale'
@@ -100,17 +100,17 @@ export default function RequirementTestsIndex({ date: initialDate, requirements:
     const f = (frequency || '').toLowerCase().trim()
 
     const styles: Record<string, string> = {
-      daily: 'border-blue-600 bg-blue-950/50 text-blue-200',
-      weekly: 'border-violet-600 bg-violet-950/50 text-violet-200',
-      monthly: 'border-amber-600 bg-amber-950/50 text-amber-200',
-      quarterly: 'border-cyan-600 bg-cyan-950/50 text-cyan-200',
-      yearly: 'border-emerald-600 bg-emerald-950/50 text-emerald-200',
-      annual: 'border-emerald-600 bg-emerald-950/50 text-emerald-200',
+      daily:      'border-blue-600 bg-blue-950/50 text-blue-200',
+      weekly:     'border-violet-600 bg-violet-950/50 text-violet-200',
+      monthly:    'border-amber-600 bg-amber-950/50 text-amber-200',
+      quarterly:  'border-cyan-600 bg-cyan-950/50 text-cyan-200',
+      yearly:     'border-emerald-600 bg-emerald-950/50 text-emerald-200',
+      annual:     'border-emerald-600 bg-emerald-950/50 text-emerald-200',
       'one time': 'border-indigo-600 bg-indigo-950/50 text-indigo-200',
       'one-time': 'border-indigo-600 bg-indigo-950/50 text-indigo-200',
-      onetime: 'border-indigo-600 bg-indigo-950/50 text-indigo-200',
-      recurring: 'border-green-600 bg-green-950/50 text-green-200',
-      'ad hoc': 'border-gray-600 bg-gray-800/50 text-gray-300',
+      onetime:    'border-indigo-600 bg-indigo-950/50 text-indigo-200',
+      recurring:  'border-green-600 bg-green-950/50 text-green-200',
+      'ad hoc':   'border-gray-600 bg-gray-800/50 text-gray-300',
     }
 
     for (const [key, value] of Object.entries(styles)) {
@@ -121,60 +121,6 @@ export default function RequirementTestsIndex({ date: initialDate, requirements:
   }
 
   const columns: ColumnDef<Requirement>[] = [
-    {
-      id: 'status',
-      header: "Status",
-      cell: ({ row }) => {
-        const deadlineStr = row.original.deadline
-
-        // Sans deadline → on affiche "Validé" en vert (très utile pour les nouveaux tests)
-        if (!deadlineStr) {
-          return (
-            <div className="flex items-center gap-1.5 justify-center text-emerald-500">
-              <CheckCircle2 className="h-4 w-4" />
-              <span className="text-xs font-medium">Validé</span>
-            </div>
-          )
-        }
-
-        const deadline = new Date(deadlineStr)
-        if (isNaN(deadline.getTime())) {
-          return <span className="text-red-400 text-lg">⚠</span>
-        }
-
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const diffDays = Math.floor((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-
-        if (diffDays < 0) {
-          return (
-            <div className="flex items-center gap-1.5 text-red-400">
-              <span className="text-lg font-bold">⚠</span>
-              <span className="text-xs font-medium">Overdue</span>
-            </div>
-          )
-        }
-
-        if (diffDays <= 3) {
-          return (
-            <div className="flex items-center gap-1.5 text-amber-400">
-              <span className="text-lg">⏳</span>
-              <span className="text-xs font-medium">{diffDays}d left</span>
-            </div>
-          )
-        }
-
-        return (
-          <div className="flex items-center gap-1.5 text-emerald-500">
-            <CheckCircle2 className="h-4 w-4" />
-            <span className="text-xs font-medium">On track</span>
-          </div>
-        )
-      },
-      enableSorting: false,
-      size: 130,
-    },
-
     {
       accessorKey: 'code',
       header: ({ column }) => (
@@ -261,7 +207,9 @@ export default function RequirementTestsIndex({ date: initialDate, requirements:
             >
               {initials}
             </div>
-            <span className="text-muted-foreground truncate max-w-[160px]">{fw.code} — {fw.name}</span>
+            <span className="text-muted-foreground truncate max-w-[160px]">
+              {fw.code} — {fw.name}
+            </span>
           </div>
         )
       },
@@ -287,11 +235,15 @@ export default function RequirementTestsIndex({ date: initialDate, requirements:
         const diffDays = Math.floor((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
         let colorClass = 'text-muted-foreground'
-        if (diffDays < 0) colorClass = 'text-red-400 font-medium'
+        if (diffDays < 0)       colorClass = 'text-red-400 font-medium'
         else if (diffDays <= 3) colorClass = 'text-amber-400 font-medium'
-        else colorClass = 'text-emerald-400'
+        else                    colorClass = 'text-emerald-400'
 
-        return <span className={colorClass}>{format(date, 'MMM d, yyyy', { locale: enUS })}</span>
+        return (
+          <span className={colorClass}>
+            {format(date, 'MMM d, yyyy', { locale: enUS })}
+          </span>
+        )
       },
     },
 
@@ -299,7 +251,25 @@ export default function RequirementTestsIndex({ date: initialDate, requirements:
       id: 'actions',
       header: () => null,
       cell: ({ row }) => (
-        <div className="flex justify-end pr-2">
+        <div className="flex justify-end items-center gap-2 pr-2 flex-wrap gap-y-2">
+          {/* Lien vers la liste des tests pour cette exigence */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              router.visit(route('requirement-tests.index'), {
+                data: { requirement: row.original.id },
+                preserveState: true,
+                preserveScroll: true,
+              })
+            }}
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            View Tests
+          </Button>
+
+          {/* Créer un nouveau test pour cette exigence */}
           <Button
             variant="default"
             size="sm"
@@ -321,12 +291,15 @@ export default function RequirementTestsIndex({ date: initialDate, requirements:
       <Head title="Compliance Tests" />
 
       <div className="min-h-screen space-y-6 p-6 pb-12">
+
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Compliance Tests</h1>
             <p className="text-muted-foreground">Track and manage scheduled compliance activities</p>
           </div>
 
+          {/* Date navigator */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1 bg-muted/40 border rounded-md px-2 py-1">
               <Button
@@ -375,6 +348,7 @@ export default function RequirementTestsIndex({ date: initialDate, requirements:
           </div>
         </div>
 
+        {/* Table */}
         <div className="pt-4">
           <ServerDataTable
             columns={columns}
@@ -385,6 +359,7 @@ export default function RequirementTestsIndex({ date: initialDate, requirements:
             }}
           />
         </div>
+
       </div>
     </AppLayout>
   )

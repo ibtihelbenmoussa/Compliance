@@ -75,7 +75,8 @@ const data = {
             items: [
                 { title: 'Frameworks', url: '/frameworks' },
                 { title: 'Requirements', url: '/requirements' },
-                { title: 'Requirement tests', url: '/req-testing' },],
+                { title: 'Requirement tests', url: '/req-testing' },
+             { title: 'Validation', url: '/requirement-tests/validation' },],
         },
     ],
 }

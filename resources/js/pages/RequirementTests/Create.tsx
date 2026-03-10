@@ -14,7 +14,7 @@ import { CalendarIcon, ChevronLeft, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription,AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 interface Framework {
   id: number
@@ -35,19 +35,20 @@ interface Props {
 
 export default function Create({ requirement }: Props) {
   const { data, setData, post, processing, errors, setError, clearErrors, recentlySuccessful } = useForm({
-    test_code: '',
-    name: '',
-    objective: '',
-    procedure: '',
-    status: 'pending',
-    result: '',
-    evidence: '',
+    test_code:      '',
+    name:           '',
+    objective:      '',
+    procedure:      '',
+    status:         'pending',
+    result:         '',
+    evidence:       '',
     requirement_id: requirement.id,
-    effective_date: '',
-    efficacy: '',
+    test_date:      format(new Date(), 'yyyy-MM-dd'), 
+    comment:        '',
+    efficacy:       '',
   })
 
-  const [effectiveDate, setEffectiveDate] = useState<Date | undefined>(undefined)
+  const [testDate, setTestDate] = useState<Date>(new Date()) // ← initialisé à aujourd'hui
 
   const validateForm = () => {
     let isValid = true
@@ -57,32 +58,26 @@ export default function Create({ requirement }: Props) {
       setError('test_code', 'Test Code is required')
       isValid = false
     }
-
     if (!data.name.trim()) {
       setError('name', 'Name is required')
       isValid = false
     }
-
     if (!data.objective.trim()) {
       setError('objective', 'Objective is required')
       isValid = false
     }
-
     if (!data.procedure.trim()) {
       setError('procedure', 'Procedure is required')
       isValid = false
     }
-
     if (!data.status) {
       setError('status', 'Status is required')
       isValid = false
     }
-
     if (!data.result) {
       setError('result', 'Result is required')
       isValid = false
     }
-
     if (!data.efficacy) {
       setError('efficacy', 'Efficacy is required')
       isValid = false
@@ -93,17 +88,12 @@ export default function Create({ requirement }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!validateForm()) return
 
     post(route('requirements.test.store', requirement.id), {
       preserveScroll: true,
       onSuccess: () => {
-        // Force un vrai refresh pour que la liste affiche les nouvelles données
         window.location.href = route('req-testing.index')
-      },
-      onError: () => {
-        // Les erreurs sont déjà affichées via errors
       },
     })
   }
@@ -118,6 +108,7 @@ export default function Create({ requirement }: Props) {
       <Head title="New Compliance Test" />
 
       <div className="space-y-12 p-6 lg:p-10">
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 pb-6 border-b">
           <div>
@@ -147,14 +138,13 @@ export default function Create({ requirement }: Props) {
           </Button>
         </div>
 
-        {/* Message de succès (s'affiche seulement si la redirection échoue) */}
+        {/* Succès */}
         {recentlySuccessful && (
           <Alert className="bg-emerald-950/50 border-emerald-800 text-emerald-100">
             <CheckCircle2 className="h-5 w-5 text-emerald-400" />
             <AlertTitle className="text-emerald-300">Test créé avec succès !</AlertTitle>
             <AlertDescription className="mt-2">
-              Vous allez être redirigé automatiquement vers la liste.<br />
-              Le nouveau test devrait apparaître avec le statut <strong className="text-emerald-300">Validé</strong> ou <strong className="text-emerald-300">On track</strong>.
+              Vous allez être redirigé automatiquement vers la liste.
             </AlertDescription>
           </Alert>
         )}
@@ -163,6 +153,7 @@ export default function Create({ requirement }: Props) {
         <Card className="border-none shadow-2xl bg-gradient-to-b from-card to-card/90 backdrop-blur-sm">
           <CardContent className="pt-10 pb-14 px-6 md:px-12 lg:px-16">
             <form onSubmit={handleSubmit} className="space-y-16">
+
               {/* Basic Information */}
               <div className="space-y-10">
                 <h2 className="text-2xl font-semibold tracking-tight border-b pb-4">
@@ -170,9 +161,10 @@ export default function Create({ requirement }: Props) {
                 </h2>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Test Code */}
                   <div className="space-y-2">
                     <Label htmlFor="test_code" className="text-sm font-medium flex items-center gap-1.5">
-                      Test Code <span className="text-red-500 text-base">*</span>
+                      Test Code <span className="text-red-500">*</span>
                     </Label>
                     <Input
                       id="test_code"
@@ -182,18 +174,16 @@ export default function Create({ requirement }: Props) {
                         setData('test_code', e.target.value.trim().toUpperCase())
                         if (errors.test_code) clearErrors('test_code')
                       }}
-                      className={cn(
-                        "h-11 text-base",
-                        errors.test_code && "border-red-500 focus-visible:ring-red-500"
-                      )}
+                      className={cn('h-11 text-base', errors.test_code && 'border-red-500 focus-visible:ring-red-500')}
                       maxLength={50}
                     />
                     {errors.test_code && <p className="text-red-600 text-sm mt-1.5">{errors.test_code}</p>}
                   </div>
 
+                  {/* Name */}
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-sm font-medium flex items-center gap-1.5">
-                      Name / Summary <span className="text-red-500 text-base">*</span>
+                      Name / Summary <span className="text-red-500">*</span>
                     </Label>
                     <Input
                       id="name"
@@ -203,19 +193,17 @@ export default function Create({ requirement }: Props) {
                         setData('name', e.target.value)
                         if (errors.name) clearErrors('name')
                       }}
-                      className={cn(
-                        "h-11 text-base",
-                        errors.name && "border-red-500 focus-visible:ring-red-500"
-                      )}
+                      className={cn('h-11 text-base', errors.name && 'border-red-500 focus-visible:ring-red-500')}
                     />
                     {errors.name && <p className="text-red-600 text-sm mt-1.5">{errors.name}</p>}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {/* Status */}
                   <div className="space-y-2">
                     <Label htmlFor="status" className="text-sm font-medium flex items-center gap-1.5">
-                      Status <span className="text-red-500 text-base">*</span>
+                      Status <span className="text-red-500">*</span>
                     </Label>
                     <Select
                       value={data.status}
@@ -224,7 +212,7 @@ export default function Create({ requirement }: Props) {
                         if (errors.status) clearErrors('status')
                       }}
                     >
-                      <SelectTrigger className={cn("h-11", errors.status && "border-red-500")}>
+                      <SelectTrigger className={cn('h-11', errors.status && 'border-red-500')}>
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
@@ -236,9 +224,10 @@ export default function Create({ requirement }: Props) {
                     {errors.status && <p className="text-red-600 text-sm mt-1.5">{errors.status}</p>}
                   </div>
 
+                  {/* Result */}
                   <div className="space-y-2">
                     <Label htmlFor="result" className="text-sm font-medium flex items-center gap-1.5">
-                      Result <span className="text-red-500 text-base">*</span>
+                      Result <span className="text-red-500">*</span>
                     </Label>
                     <Select
                       value={data.result}
@@ -247,7 +236,7 @@ export default function Create({ requirement }: Props) {
                         if (errors.result) clearErrors('result')
                       }}
                     >
-                      <SelectTrigger className={cn("h-11", errors.result && "border-red-500")}>
+                      <SelectTrigger className={cn('h-11', errors.result && 'border-red-500')}>
                         <SelectValue placeholder="Select result" />
                       </SelectTrigger>
                       <SelectContent>
@@ -258,9 +247,10 @@ export default function Create({ requirement }: Props) {
                     {errors.result && <p className="text-red-600 text-sm mt-1.5">{errors.result}</p>}
                   </div>
 
+                  {/* Efficacy */}
                   <div className="space-y-2">
                     <Label htmlFor="efficacy" className="text-sm font-medium flex items-center gap-1.5">
-                      Efficacy <span className="text-red-500 text-base">*</span>
+                      Efficacy <span className="text-red-500">*</span>
                     </Label>
                     <Select
                       value={data.efficacy}
@@ -269,7 +259,7 @@ export default function Create({ requirement }: Props) {
                         if (errors.efficacy) clearErrors('efficacy')
                       }}
                     >
-                      <SelectTrigger className={cn("h-11", errors.efficacy && "border-red-500")}>
+                      <SelectTrigger className={cn('h-11', errors.efficacy && 'border-red-500')}>
                         <SelectValue placeholder="Select efficacy" />
                       </SelectTrigger>
                       <SelectContent>
@@ -290,9 +280,10 @@ export default function Create({ requirement }: Props) {
                 </h2>
 
                 <div className="space-y-6">
+                  {/* Objective */}
                   <div className="space-y-3">
                     <Label htmlFor="objective" className="text-sm font-medium flex items-center gap-1.5">
-                      Objective <span className="text-red-500 text-base">*</span>
+                      Objective <span className="text-red-500">*</span>
                     </Label>
                     <Textarea
                       id="objective"
@@ -302,17 +293,15 @@ export default function Create({ requirement }: Props) {
                         setData('objective', e.target.value)
                         if (errors.objective) clearErrors('objective')
                       }}
-                      className={cn(
-                        "min-h-[120px] resize-y",
-                        errors.objective && "border-red-500 focus-visible:ring-red-500"
-                      )}
+                      className={cn('min-h-[120px] resize-y', errors.objective && 'border-red-500 focus-visible:ring-red-500')}
                     />
                     {errors.objective && <p className="text-red-600 text-sm mt-1.5">{errors.objective}</p>}
                   </div>
 
+                  {/* Procedure */}
                   <div className="space-y-3">
                     <Label htmlFor="procedure" className="text-sm font-medium flex items-center gap-1.5">
-                      Procedure / Steps <span className="text-red-500 text-base">*</span>
+                      Procedure / Steps <span className="text-red-500">*</span>
                     </Label>
                     <Textarea
                       id="procedure"
@@ -322,14 +311,12 @@ export default function Create({ requirement }: Props) {
                         setData('procedure', e.target.value)
                         if (errors.procedure) clearErrors('procedure')
                       }}
-                      className={cn(
-                        "min-h-[160px] resize-y",
-                        errors.procedure && "border-red-500 focus-visible:ring-red-500"
-                      )}
+                      className={cn('min-h-[160px] resize-y', errors.procedure && 'border-red-500 focus-visible:ring-red-500')}
                     />
                     {errors.procedure && <p className="text-red-600 text-sm mt-1.5">{errors.procedure}</p>}
                   </div>
 
+                  {/* Evidence */}
                   <div className="space-y-3">
                     <Label htmlFor="evidence" className="text-sm font-medium">
                       Evidence / Proof
@@ -342,38 +329,51 @@ export default function Create({ requirement }: Props) {
                       className="min-h-[140px] resize-y"
                     />
                   </div>
+                  <div className="space-y-3">
+  <Label htmlFor="comment" className="text-sm font-medium">
+    Comment
+  </Label>
+  <Textarea
+    id="comment"
+    placeholder="Additional notes or observations about this test..."
+    value={data.comment}
+    onChange={e => setData('comment', e.target.value)}
+    className="min-h-[100px] resize-y"
+  />
+</div>
 
+
+                  {/* Test Date ← renommé depuis effective_date */}
                   <div className="space-y-3">
                     <Label className="text-sm font-medium flex items-center gap-1.5">
-                      Effective Test Date
+                      Test Date
                     </Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal h-11",
-                            !effectiveDate && "text-muted-foreground"
-                          )}
+                          className="w-full justify-start text-left font-normal h-11"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {effectiveDate
-                            ? format(effectiveDate, 'MMM dd, yyyy')
-                            : 'Pick a date'}
+                          {testDate ? format(testDate, 'MMM dd, yyyy') : 'Pick a date'}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
                         <Calendar
                           mode="single"
-                          selected={effectiveDate}
+                          selected={testDate}
                           onSelect={date => {
-                            setEffectiveDate(date)
-                            setData('effective_date', date ? format(date, 'yyyy-MM-dd') : '')
+                            if (!date) return
+                            setTestDate(date)
+                            setData('test_date', format(date, 'yyyy-MM-dd'))
                           }}
                           initialFocus
                         />
                       </PopoverContent>
                     </Popover>
+                    <p className="text-xs text-muted-foreground">
+                      Par défaut : aujourd'hui ({format(new Date(), 'MMM dd, yyyy')})
+                    </p>
                   </div>
                 </div>
               </div>
@@ -408,6 +408,7 @@ export default function Create({ requirement }: Props) {
                   ) : 'Create Test'}
                 </Button>
               </div>
+
             </form>
           </CardContent>
         </Card>

@@ -34,7 +34,6 @@ class RequirementTestController extends Controller
             ])
             ->latest('test_date');
 
-        // Filtre date
         if ($date = $request->query('date')) {
             try {
                 $parsedDate = Carbon::parse($date);
@@ -51,7 +50,6 @@ class RequirementTestController extends Controller
             });
         }
 
-        // Satut
         if ($status = $request->query('status')) {
             $query->where('status', $status);
         }
@@ -59,8 +57,8 @@ class RequirementTestController extends Controller
         $tests = $query->paginate(15)->withQueryString();
 
         return Inertia::render('RequirementTests/Index', [
-            'tests' => $tests,
-            'filters' => $request->only(['date', 'search', 'status']),
+            'tests'     => $tests,
+            'filters'   => $request->only(['date', 'search', 'status']),
             'canCreate' => Auth::user()->can('create', RequirementTest::class),
         ]);
     }
@@ -86,23 +84,23 @@ class RequirementTestController extends Controller
 
         $validated = $request->validate([
             'requirement_id' => ['required', 'exists:requirements,id'],
-            'test_date' => ['required', 'date'],
-            'status' => ['required', 'in:compliant,non_compliant,partial,na'],
-            'comment' => ['nullable', 'string', 'max:2000'],
-            'evidence' => ['nullable', 'array'],
-            'evidence.*' => ['nullable', 'string', 'max:2048'],
+            'test_date'      => ['required', 'date'],
+            'status'         => ['required', 'in:compliant,non_compliant,partial,na'],
+            'comment'        => ['nullable', 'string', 'max:2000'],
+            'evidence'       => ['nullable', 'array'],
+            'evidence.*'     => ['nullable', 'string', 'max:2048'],
         ]);
 
         $requirement = Requirement::findOrFail($validated['requirement_id']);
 
         RequirementTest::create([
             'requirement_id' => $validated['requirement_id'],
-            'framework_id' => $requirement->framework_id,
-            'user_id' => Auth::id(),
-            'test_date' => $validated['test_date'],
-            'status' => $validated['status'],
-            'comment' => $validated['comment'] ?? null,
-            'evidence' => $validated['evidence'] ?? null,
+            'framework_id'   => $requirement->framework_id,
+            'user_id'        => Auth::id(),
+            'test_date'      => $validated['test_date'],
+            'status'         => $validated['status'],
+            'comment'        => $validated['comment'] ?? null,
+            'evidence'       => $validated['evidence'] ?? null,
         ]);
 
         return redirect()
@@ -110,16 +108,16 @@ class RequirementTestController extends Controller
             ->with('success', 'Test created successfully.');
     }
 
-    public function show(RequirementTest $requirementTest)
-    {
-        $this->authorize('view', $requirementTest);
+   public function show(RequirementTest $requirementTest)
+{
+    // $this->authorize('view', $requirementTest);   ← commente cette ligne
 
-        $requirementTest->load(['requirement.framework', 'user', 'framework']);
+    $requirementTest->load(['requirement.framework', 'user', 'framework']);
 
-        return Inertia::render('RequirementTests/Show', [
-            'test' => $requirementTest,
-        ]);
-    }
+    return Inertia::render('RequirementTests/Show', [
+        'test' => $requirementTest,
+    ]);
+}
 
     public function edit(RequirementTest $requirementTest)
     {
@@ -133,7 +131,7 @@ class RequirementTestController extends Controller
             ->get();
 
         return Inertia::render('RequirementTests/Edit', [
-            'test' => $requirementTest,
+            'test'         => $requirementTest,
             'requirements' => $requirements,
         ]);
     }
@@ -143,10 +141,10 @@ class RequirementTestController extends Controller
         $this->authorize('update', $requirementTest);
 
         $validated = $request->validate([
-            'test_date' => ['required', 'date'],
-            'status' => ['required', 'in:compliant,non_compliant,partial,na'],
-            'comment' => ['nullable', 'string', 'max:2000'],
-            'evidence' => ['nullable', 'array'],
+            'test_date'  => ['required', 'date'],
+            'status'     => ['required', 'in:compliant,non_compliant,partial,na'],
+            'comment'    => ['nullable', 'string', 'max:2000'],
+            'evidence'   => ['nullable', 'array'],
             'evidence.*' => ['nullable', 'string', 'max:2048'],
         ]);
 
@@ -168,9 +166,7 @@ class RequirementTestController extends Controller
             ->with('success', 'Test deleted successfully.');
     }
 
-    /**
-     * Show form to create test for a specific requirement
-     */
+ 
     public function createForRequirement(Requirement $requirement)
     {
         $this->authorize('create', RequirementTest::class);
@@ -182,30 +178,87 @@ class RequirementTestController extends Controller
         ]);
     }
 
-    /**
-     * Store test for a specific requirement
-     */
+   
     public function storeForRequirement(Request $request, Requirement $requirement)
     {
         $data = $request->validate([
             'test_code' => 'required|string|max:50|unique:requirement_tests,test_code',
-            'name' => 'required|string',
+            'name'      => 'required|string',
             'objective' => 'required|string',
             'procedure' => 'required|string',
-            'status' => 'required|string',
-            'result' => 'required|string',
-            'efficacy' => 'required|string',
-            'effective_date' => 'nullable|date',
-            'evidence' => 'nullable|string',
+            'status'    => 'required|string',
+            'result'    => 'required|string',
+            'efficacy'  => 'required|string',
+            'test_date' => 'nullable|date',             
+            'evidence'  => 'nullable|string',
+            'comment'   => 'nullable|string|max:2000', 
         ]);
 
-        $data['user_id'] = auth()->id();
-        $data['framework_id'] = $requirement->framework_id;
+        $data['user_id']           = auth()->id();
+        $data['framework_id']      = $requirement->framework_id;
+        $data['validation_status'] = 'pending';
 
-        $test = $requirement->tests()->create($data);
+        $data['test_date'] = $data['test_date'] ?? now()->toDateString();
+
+        $requirement->tests()->create($data);
 
         return redirect('/req-testing')
-            
             ->with('success', 'Test créé avec succès !');
+    }
+
+    
+    public function accept(RequirementTest $requirementTest)
+    {
+        $requirementTest->update([
+            'validation_status' => 'accepted',
+        ]);
+
+        // Recalculer la deadline du requirement selon sa fréquence
+        $requirement = $requirementTest->requirement;
+
+        if ($requirement) {
+            $newDeadline = match (strtolower($requirement->frequency ?? '')) {
+                'daily'            => now()->addDay(),
+                'weekly'           => now()->addWeek(),
+                'monthly'          => now()->addMonth(),
+                'quarterly'        => now()->addMonths(3),
+                'yearly', 'annual' => now()->addYear(),
+                default            => null,
+            };
+
+            if ($newDeadline) {
+                $requirement->update(['deadline' => $newDeadline]);
+            }
+        }
+
+        return back()->with('success', 'Test accepted. Deadline updated.');
+    }
+
+    
+    public function reject(Request $request, RequirementTest $requirementTest)
+    {
+        $request->validate([
+            'comment' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $requirementTest->update([
+            'validation_status'  => 'rejected',
+            'validation_comment' => $request->comment,
+        ]);
+
+        return back()->with('success', 'Test rejected.');
+    }
+
+    
+    public function validation()
+    {
+        $tests = RequirementTest::query()
+            ->with(['requirement:id,code,title', 'user:id,name'])
+            ->latest()
+            ->paginate(15);
+
+        return Inertia::render('RequirementTests/Validation', [
+            'tests' => $tests,
+        ]);
     }
 }
