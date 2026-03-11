@@ -253,21 +253,17 @@ export default function RequirementTestsIndex({ date: initialDate, requirements:
       cell: ({ row }) => (
         <div className="flex justify-end items-center gap-2 pr-2 flex-wrap gap-y-2">
           {/* Lien vers la liste des tests pour cette exigence */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation()
-              router.visit(route('requirement-tests.index'), {
-                data: { requirement: row.original.id },
-                preserveState: true,
-                preserveScroll: true,
-              })
-            }}
-          >
-            <Eye className="h-4 w-4 mr-2" />
-            View Tests
-          </Button>
+       <Button
+  variant="outline"
+  size="sm"
+  onClick={(e) => {
+    e.stopPropagation()
+    router.visit(route('requirement-tests.show', row.original.id))
+  }}
+>
+  <Eye className="h-4 w-4 mr-2" />
+  View Tests
+</Button>
 
           {/* Créer un nouveau test pour cette exigence */}
           <Button

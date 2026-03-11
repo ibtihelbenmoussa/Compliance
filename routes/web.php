@@ -23,7 +23,7 @@ use App\Http\Controllers\PermissionController;
 // Page d'accueil publique
 Route::get('/', function () {
     //return Inertia::render('welcome');
-      if (auth()->check()) {
+    if (auth()->check()) {
         return redirect()->route('organizations.select.page');
     }
 
@@ -121,14 +121,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('requirements', RequirementController::class);
 
     // Requirement Tests (liste + création depuis exigence)
-            Route::get('requirement-tests/validation', [RequirementTestController::class, 'validation'])
-    ->name('requirement-tests.validation');
+    Route::get('requirement-tests/validation', [RequirementTestController::class, 'validation'])
+        ->name('requirement-tests.validation');
 
     Route::patch('requirement-tests/{requirementTest}/accept', [RequirementTestController::class, 'accept'])
-    ->name('requirement-tests.accept');
+        ->name('requirement-tests.accept');
 
-Route::patch('requirement-tests/{requirementTest}/reject', [RequirementTestController::class, 'reject'])
-    ->name('requirement-tests.reject');
+    Route::patch('requirement-tests/{requirementTest}/reject', [RequirementTestController::class, 'reject'])
+        ->name('requirement-tests.reject');
     Route::get('req-testing', [RequirementController::class, 'getRequirementsForTesting'])
         ->name('req-testing.index');
 
@@ -139,9 +139,10 @@ Route::patch('requirement-tests/{requirementTest}/reject', [RequirementTestContr
         ->name('requirements.test.store');
 
     Route::resource('requirement-tests', RequirementTestController::class)
-        ->only(['index', 'show', 'edit', 'update', 'destroy']);
+        ->only(['index',  'edit', 'update', 'destroy']);
 
-
+Route::get('/requirement-tests/{requirementTest}', [RequirementTestController::class, 'show'])
+    ->name('requirement-tests.show');
 });
 
 require __DIR__ . '/settings.php';

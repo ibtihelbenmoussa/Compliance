@@ -335,12 +335,12 @@ export default function CreateFramework() {
                 Back
               </Link>
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setJurisdictionsDialogOpen(true)}>
+          {/*   <Button variant="outline" size="sm" onClick={() => setJurisdictionsDialogOpen(true)}>
               Manage Jurisdictions
             </Button>
             <Button variant="outline" size="sm" onClick={() => setTagsDialogOpen(true)}>
               Manage Tags
-            </Button>
+            </Button> */}
           </div>
         </div>
 

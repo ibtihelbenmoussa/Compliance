@@ -1,236 +1,252 @@
-import { Head, router } from '@inertiajs/react'
+// resources/js/pages/RequirementTests/show.tsx
+import { Head, usePage, router } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft,
-  Pencil,
-  Calendar,
-  FileCheck,
-  MessageSquare,
-  Link2,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  User,
+  CalendarIcon,
   FileText,
+  ClipboardList,
+  CheckCircle2,
+  AlertCircle,
+  Tag,
+  Link2,
+  Clock,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
-interface RequirementTest {
+interface Framework {
+  code: string
+  name: string
+}
+
+interface Process {
+  name: string
+}
+
+interface TagItem {
   id: number
-  requirement: {
-    id: number
-    code: string
-    title: string
-    framework?: { code: string; name: string } | null
-  }
-  user: { name: string } | null
-  test_date: string | null
-  status: 'compliant' | 'non_compliant' | 'partial' | 'na'
-  comment?: string | null
-  evidence?: string[] | null
+  name: string
+}
+
+interface Requirement {
+  id: number
+  code: string
+  title: string
+  description?: string | null
+  type: string
+  status: string
+  priority: string
+  frequency: string
+  framework?: Framework | null
+  framework_name?: string | null
+  process?: Process | null
+  process_name?: string | null
+  tags?: TagItem[] | null
+  deadline?: string | null
+  completion_date?: string | null
+  compliance_level: string
+  attachments?: string | null
   created_at: string
-  updated_at?: string | null
-  validation_status?: 'pending' | 'accepted' | 'rejected' | null
-  validation_comment?: string | null
+  updated_at: string
 }
 
-interface Props {
-  test: RequirementTest
-}
+export default function ShowTest() {
+  const { requirement } = usePage<{ requirement: Requirement }>().props
 
-export default function ShowRequirementTest({ test }: Props) {
   const formatDate = (date?: string | null) => {
     if (!date) return '—'
     try {
       const d = new Date(date)
-      if (isNaN(d.getTime())) return date
-      return format(d, 'dd MMMM yyyy', { locale: fr })
+      return isNaN(d.getTime()) ? date : format(d, 'dd MMMM yyyy', { locale: fr })
     } catch {
       return date
     }
   }
 
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      compliant: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-300',
-      non_compliant: 'bg-rose-500/10 text-rose-700 border-rose-500/30 dark:bg-rose-950/40 dark:text-rose-300',
-      partial: 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-300',
-      na: 'bg-slate-500/10 text-slate-700 border-slate-500/30 dark:bg-slate-900/40 dark:text-slate-300',
+  const getStatusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      active:   'bg-emerald-500/10 text-emerald-700 border-emerald-500/30',
+      draft:    'bg-amber-500/10 text-amber-700 border-amber-500/30',
+      archived: 'bg-slate-500/10 text-slate-700 border-slate-500/30',
     }
-    return colors[status.toLowerCase()] || 'bg-gray-500/10 text-gray-700 border-gray-500/30 dark:bg-gray-800/40 dark:text-gray-300'
+    return map[status?.toLowerCase()] ?? 'bg-gray-500/10 text-gray-700 border-gray-500/30'
   }
 
-  const getValidationColor = (status?: string | null) => {
-    if (!status) return 'bg-gray-500/10 text-gray-700 border-gray-500/30 dark:bg-gray-800/40 dark:text-gray-300'
-    const colors: Record<string, string> = {
-      accepted: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-300',
-      rejected: 'bg-rose-500/10 text-rose-700 border-rose-500/30 dark:bg-rose-950/40 dark:text-rose-300',
-      pending: 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-300',
+  const getPriorityBadge = (priority: string) => {
+    const map: Record<string, string> = {
+      high:   'bg-red-500/10 text-red-700 border-red-500/30',
+      medium: 'bg-amber-500/10 text-amber-700 border-amber-500/30',
+      low:    'bg-emerald-500/10 text-emerald-700 border-emerald-500/30',
     }
-    return colors[status.toLowerCase()] || 'bg-gray-500/10 text-gray-700 border-gray-500/30 dark:bg-gray-800/40 dark:text-gray-300'
+    return map[priority?.toLowerCase()] ?? 'bg-gray-500/10 text-gray-700 border-gray-500/30'
   }
 
-  const hasEvidence = test.evidence && test.evidence.length > 0
+  const getComplianceBadge = (level: string) => {
+    const map: Record<string, string> = {
+      mandatory:   'bg-red-500/10 text-red-700 border-red-500/30',
+      recommended: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30',
+      optional:    'bg-blue-500/10 text-blue-700 border-blue-500/30',
+    }
+    return map[level?.toLowerCase()] ?? 'bg-gray-500/10 text-gray-700 border-gray-500/30'
+  }
+
+  const capitalize = (str: string) =>
+    str ? str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '—'
+
+  const attachmentUrls = (requirement.attachments || '')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.startsWith('http'))
+
+  const tags = requirement.tags ?? []
 
   return (
-    <AppLayout>
-      <Head title={`Test • ${test.requirement.code} - ${test.requirement.title}`} />
+    <AppLayout
+      breadcrumbs={[
+        { title: 'Requirements', href: '/requirements' },
+        { title: requirement.code, href: '' },
+      ]}
+    >
+      <Head title={`Requirement • ${requirement.title}`} />
 
-      <div className="p-6 lg:p-10 space-y-10 min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="space-y-12 p-6 lg:p-10">
+
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 pb-4 border-b border-border/60">
-          <div className="flex items-center gap-5">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => window.history.back()}
-              className="rounded-full hover:bg-muted/80 transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-foreground">
-                {test.requirement.code} — {test.requirement.title}
-              </h1>
-              <div className="flex items-center gap-3 mt-2.5 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 pb-6 border-b">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{requirement.title}</h1>
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center gap-3 flex-wrap">
                 <Badge variant="outline" className="font-mono text-sm px-3 py-1 bg-muted/50">
-                  Test ID: {test.id}
+                  {requirement.code}
                 </Badge>
-                {test.requirement.framework && (
-                  <Badge variant="outline" className="text-sm px-3 py-1 bg-muted/50">
-                    {test.requirement.framework.code}
-                  </Badge>
-                )}
+                <Badge className={`px-4 py-1.5 text-sm font-medium rounded-full border ${getStatusBadge(requirement.status)}`}>
+                  {capitalize(requirement.status)}
+                </Badge>
               </div>
+              {requirement.framework && (
+                <div className="inline-flex items-center gap-3 bg-background/70 px-4 py-2 rounded-full border border-border/60">
+                  <Badge variant="secondary" className="text-base px-3 py-1">
+                    {requirement.framework.code}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground font-medium">
+                    {requirement.framework_name ?? requirement.framework.name}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
-          <Button
-            onClick={() => router.visit(`/requirement-tests/${test.id}/edit`)}
-            className="gap-2 bg-primary hover:bg-primary/90 shadow-md transition-all"
-            size="lg"
-          >
-            <Pencil className="h-4 w-4" />
-            Modifier le test
+          <Button variant="outline" size="sm" onClick={() => router.visit('/requirements')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to List
           </Button>
         </div>
 
-        {/* Badges principaux */}
+        {/* Quick badges */}
         <div className="flex flex-wrap gap-3">
-          <Badge
-            className={`px-5 py-1.5 text-base font-medium rounded-full border ${getStatusColor(test.status)}`}
-          >
-            {test.status === 'non_compliant'
-              ? 'Non conforme'
-              : test.status === 'partial'
-              ? 'Partiellement conforme'
-              : test.status === 'na'
-              ? 'Non applicable'
-              : 'Conforme'}
+          <Badge className={`px-5 py-1.5 text-base font-medium rounded-full border ${getPriorityBadge(requirement.priority)}`}>
+            Priority: {capitalize(requirement.priority)}
           </Badge>
-
-          {test.validation_status && (
-            <Badge
-              className={`px-5 py-1.5 text-base font-medium rounded-full border ${getValidationColor(test.validation_status)}`}
-            >
-              {test.validation_status === 'accepted'
-                ? 'Validé'
-                : test.validation_status === 'rejected'
-                ? 'Rejeté'
-                : 'En attente'}
-            </Badge>
-          )}
-
-          <Badge variant="secondary" className="px-5 py-1.5 text-base">
-            Testé le {formatDate(test.test_date)}
+          <Badge className={`px-5 py-1.5 text-base font-medium rounded-full border ${getComplianceBadge(requirement.compliance_level)}`}>
+            {capitalize(requirement.compliance_level)}
+          </Badge>
+          <Badge variant="outline" className="px-5 py-1.5 text-base">
+            {capitalize(requirement.frequency)}
           </Badge>
         </div>
 
-        {/* Contenu principal */}
+        {/* Main content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Colonne principale */}
+
+          {/* Left column */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Informations générales */}
-            <Card className="border border-border/60 shadow-sm hover:shadow-md transition-shadow duration-300">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <FileCheck className="h-5 w-5 text-primary" />
-                  </div>
-                  <CardTitle className="text-xl font-semibold">Détails du test</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <Field label="Exigence" value={test.requirement.title} />
-                <Field label="Code exigence" value={test.requirement.code} />
-                <Field label="Framework" value={test.requirement.framework?.name || '—'} />
-                <Field label="Testeur" value={test.user?.name || '—'} icon={<User className="h-4 w-4" />} />
-                <Field label="Date du test" value={formatDate(test.test_date)} icon={<Calendar className="h-4 w-4" />} />
-                <Field label="Créé le" value={formatDate(test.created_at)} icon={<Clock className="h-4 w-4" />} />
-              </CardContent>
-            </Card>
 
-            {/* Commentaire */}
-            {test.comment && (
-              <Card className="border border-border/60 shadow-sm hover:shadow-md transition-shadow duration-300">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <MessageSquare className="h-5 w-5 text-primary" />
-                    </div>
-                    <CardTitle className="text-xl font-semibold">Commentaire / Observations</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-base leading-relaxed text-foreground/90 whitespace-pre-wrap">
-                    {test.comment}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Preuves / Evidence */}
-            <Card className="border border-border/60 shadow-sm hover:shadow-md transition-shadow duration-300">
-              <CardHeader className="pb-4">
+            {/* Description */}
+            <Card className="border border-border/60 shadow-sm">
+              <CardContent className="pt-6 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-primary/10">
                     <FileText className="h-5 w-5 text-primary" />
                   </div>
-                  <CardTitle className="text-xl font-semibold">Preuves / Évidences</CardTitle>
+                  <h2 className="text-xl font-semibold">Description</h2>
                 </div>
-              </CardHeader>
-              <CardContent>
-                {hasEvidence ? (
+                {requirement.description ? (
+                  <p className="text-base leading-relaxed whitespace-pre-wrap text-foreground/90 bg-muted/30 rounded-lg p-4">
+                    {requirement.description}
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground italic">No description provided.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* General Info */}
+            <Card className="border border-border/60 shadow-sm">
+              <CardContent className="pt-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <ClipboardList className="h-5 w-5 text-primary" />
+                  </div>
+                  <h2 className="text-xl font-semibold">General Information</h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Type</p>
+                    <p className="font-medium">{capitalize(requirement.type) || '—'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Framework</p>
+                    <p className="font-medium">
+                      {requirement.framework
+                        ? `${requirement.framework.code} — ${requirement.framework_name ?? requirement.framework.name}`
+                        : '—'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Process</p>
+                    <p className="font-medium">{requirement.process_name ?? requirement.process?.name ?? '—'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Frequency</p>
+                    <p className="font-medium">{capitalize(requirement.frequency)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Attachments */}
+            <Card className="border border-border/60 shadow-sm">
+              <CardContent className="pt-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Link2 className="h-5 w-5 text-primary" />
+                  </div>
+                  <h2 className="text-xl font-semibold">Attachments</h2>
+                </div>
+                {attachmentUrls.length > 0 ? (
                   <div className="space-y-3">
-                    {test.evidence?.map((url, index) => (
+                    {attachmentUrls.map((url, idx) => (
                       <a
-                        key={index}
+                        key={idx}
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-3 text-primary hover:text-primary/80 hover:underline transition-all group text-base break-all"
+                        className="flex items-center gap-3 text-primary hover:underline break-all text-base"
                       >
-                        <div className="p-1.5 rounded-md bg-primary/5 group-hover:bg-primary/10 transition-colors">
-                          <Link2 className="h-4 w-4" />
-                        </div>
-                        <span>Preuve {index + 1}</span>
+                        <Link2 className="h-4 w-4 shrink-0" />
+                        {url}
                       </a>
                     ))}
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3 text-muted-foreground py-4">
-                    <AlertCircle className="h-5 w-5" />
-                    <span>Aucune preuve jointe</span>
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm py-2">
+                    <AlertCircle className="h-4 w-4" />
+                    No attachments added
                   </div>
                 )}
               </CardContent>
@@ -239,64 +255,63 @@ export default function ShowRequirementTest({ test }: Props) {
 
           {/* Sidebar */}
           <div className="space-y-8">
-            {/* Validation */}
-            <Card className="border border-border/60 shadow-sm hover:shadow-md transition-shadow duration-300">
-              <CardHeader className="pb-4">
+
+            {/* Dates */}
+            <Card className="border border-border/60 shadow-sm">
+              <CardContent className="pt-6 space-y-5">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-primary/10">
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                    <CalendarIcon className="h-5 w-5 text-primary" />
                   </div>
-                  <CardTitle className="text-xl font-semibold">Validation</CardTitle>
+                  <h2 className="text-xl font-semibold">Key Dates</h2>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <Field
-                  label="Statut validation"
-                  value={
-                    test.validation_status
-                      ? test.validation_status === 'accepted'
-                        ? 'Accepté'
-                        : test.validation_status === 'rejected'
-                        ? 'Rejeté'
-                        : 'En attente'
-                      : '—'
-                  }
-                  icon={<CheckCircle2 className="h-4 w-4" />}
-                />
-                {test.validation_comment && (
-                  <Field
-                    label="Commentaire validation"
-                    value={test.validation_comment}
-                    icon={<MessageSquare className="h-4 w-4" />}
-                  />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" /> Deadline
+                  </div>
+                  <p className="font-medium">{formatDate(requirement.deadline)}</p>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4" /> Completion date
+                  </div>
+                  <p className="font-medium">{formatDate(requirement.completion_date)}</p>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CalendarIcon className="h-4 w-4" /> Created at
+                  </div>
+                  <p className="font-medium">{formatDate(requirement.created_at)}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tags */}
+            <Card className="border border-border/60 shadow-sm">
+              <CardContent className="pt-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Tag className="h-5 w-5 text-primary" />
+                  </div>
+                  <h2 className="text-xl font-semibold">Tags</h2>
+                </div>
+                {tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map(tag => (
+                      <Badge key={tag.id} variant="secondary" className="text-sm px-4 py-1.5 rounded-full">
+                        {tag.name}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">No tags assigned</p>
                 )}
               </CardContent>
             </Card>
+
           </div>
         </div>
       </div>
     </AppLayout>
-  )
-}
-
-function Field({
-  label,
-  value,
-  icon,
-}: {
-  label: string
-  value: React.ReactNode
-  icon?: React.ReactNode
-}) {
-  return (
-    <div className="space-y-1.5">
-      <p className="text-sm font-medium text-muted-foreground flex items-center gap-2.5">
-        {icon}
-        {label}
-      </p>
-      <p className="font-medium text-base text-foreground break-words">
-        {value || '—'}
-      </p>
-    </div>
   )
 }

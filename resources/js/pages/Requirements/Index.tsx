@@ -63,7 +63,6 @@ import {
   RefreshCw,
   GripVertical,
   ListFilter,
-  Download,
 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PaginatedData } from '@/types'
@@ -78,7 +77,6 @@ import { cn } from '@/lib/utils'
 interface TagItem {
   id: number
   name: string
-  // pivot?: Record<string, any> // if needed
 }
 
 interface Requirement {
@@ -142,10 +140,10 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
     return {
       total,
       items: [
-        { label: 'Total', count: total, percent: 100, color: 'blue', icon: Building2 },
-        { label: 'Active', count: active, percent: total ? Math.round((active / total) * 100) : 0, color: 'emerald', icon: CheckCircle2 },
-        { label: 'Draft', count: draft, percent: total ? Math.round((draft / total) * 100) : 0, color: 'amber', icon: FileText },
-        { label: 'Archived', count: archived, percent: total ? Math.round((archived / total) * 100) : 0, color: 'slate', icon: Archive },
+        { label: 'Total',    count: total,    percent: 100, barClass: 'bg-blue-500',    icon: Building2   },
+        { label: 'Active',   count: active,   percent: total ? Math.round((active   / total) * 100) : 0, barClass: 'bg-emerald-500', icon: CheckCircle2 },
+        { label: 'Draft',    count: draft,    percent: total ? Math.round((draft    / total) * 100) : 0, barClass: 'bg-amber-500',   icon: FileText     },
+        { label: 'Archived', count: archived, percent: total ? Math.round((archived / total) * 100) : 0, barClass: 'bg-slate-500',   icon: Archive      },
       ],
     }
   }, [requirements.data])
@@ -153,17 +151,17 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
   const priorityStats = useMemo(() => {
     const data = requirements.data
     const total = data.length
-    const high = data.filter(r => r.priority?.toLowerCase() === 'high').length
+    const high   = data.filter(r => r.priority?.toLowerCase() === 'high').length
     const medium = data.filter(r => r.priority?.toLowerCase() === 'medium').length
-    const low = data.filter(r => r.priority?.toLowerCase() === 'low').length
+    const low    = data.filter(r => r.priority?.toLowerCase() === 'low').length
 
     return {
       total,
       items: [
-        { label: 'Total', count: total, percent: 100, color: 'blue', icon: Building2 },
-        { label: 'High', count: high, percent: total ? Math.round((high / total) * 100) : 0, color: 'red', icon: AlertTriangle },
-        { label: 'Medium', count: medium, percent: total ? Math.round((medium / total) * 100) : 0, color: 'amber', icon: AlertTriangle },
-        { label: 'Low', count: low, percent: total ? Math.round((low / total) * 100) : 0, color: 'emerald', icon: CheckCircle2 },
+        { label: 'Total',  count: total,  percent: 100, barClass: 'bg-blue-500',    icon: Building2    },
+        { label: 'High',   count: high,   percent: total ? Math.round((high   / total) * 100) : 0, barClass: 'bg-red-500',     icon: AlertTriangle },
+        { label: 'Medium', count: medium, percent: total ? Math.round((medium / total) * 100) : 0, barClass: 'bg-amber-500',   icon: AlertTriangle },
+        { label: 'Low',    count: low,    percent: total ? Math.round((low    / total) * 100) : 0, barClass: 'bg-emerald-500', icon: CheckCircle2  },
       ],
     }
   }, [requirements.data])
@@ -214,16 +212,16 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
   }
 
   const statusOptions: FacetedFilterOption[] = [
-    { label: 'Active', value: 'active', icon: CheckCircle2 },
-    { label: 'Draft', value: 'draft', icon: FileText },
-    { label: 'Archived', value: 'archived', icon: Archive },
+    { label: 'Active',   value: 'active',   icon: CheckCircle2 },
+    { label: 'Draft',    value: 'draft',    icon: FileText     },
+    { label: 'Archived', value: 'archived', icon: Archive      },
   ]
 
   const priorityOptions: SelectOption[] = [
-    { label: 'All', value: 'all' },
-    { label: 'High', value: 'high' },
+    { label: 'All',    value: 'all'    },
+    { label: 'High',   value: 'high'   },
     { label: 'Medium', value: 'medium' },
-    { label: 'Low', value: 'low' },
+    { label: 'Low',    value: 'low'    },
   ]
 
   const columns: ColumnDef<Requirement>[] = [
@@ -419,9 +417,6 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
     router.put(`/requirements/${requirementId}`, { [field]: newValue }, {
       preserveState: true,
       preserveScroll: true,
-      onSuccess: () => {
-        // toast.success("Requirement updated")
-      },
       onError: (errors) => console.error('Update failed', errors),
     })
   }
@@ -431,7 +426,8 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
       <Head title="Requirements" />
 
       <div className="container mx-auto space-y-6 py-6 px-4 md:px-6 lg:px-8">
-        {/* Header */}
+
+        {/* ── Header ───────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Requirements</h1>
@@ -467,7 +463,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
           </div>
         </div>
 
-        {/* Stats */}
+        {/* ── Stats Cards (identical to Frameworks) ────── */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {currentStats.items.map((stat, i) => (
             <Card
@@ -491,8 +487,8 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
                 </div>
                 <div className="mt-3 h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-1000 ease-out bg-${stat.color}-600`}
-                    style={{ width: isMounted ? `${stat.percent}%` : '0%' }}
+                    className={`h-full rounded-full transition-all duration-1000 ease-out ${stat.barClass}`}
+                    style={{ width: `${stat.percent}%` }}
                   />
                 </div>
               </CardContent>
@@ -502,6 +498,7 @@ export default function RequirementsIndex({ requirements }: RequirementsIndexPro
 
         <Separator className="my-6" />
 
+        {/* ── Table / Kanban ───────────────────────────── */}
         {viewMode === 'table' ? (
           <ServerDataTable
             columns={columns}

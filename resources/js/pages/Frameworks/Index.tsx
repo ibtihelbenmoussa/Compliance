@@ -1,4 +1,3 @@
-// resources/js/pages/Frameworks/Index.tsx
 import { useMemo, useState } from 'react'
 import { Head, Link, router } from '@inertiajs/react'
 import AppLayout from '@/layouts/app-layout'
@@ -86,6 +85,7 @@ import {
   type DropResult,
 } from '@hello-pangea/dnd'
 import { cn } from '@/lib/utils'
+import { Globe2 } from "lucide-react";
 
 const jurisdictionFlags: Record<string, string> = {
   'Algérie': 'dz', 'Algeria': 'dz',
@@ -302,11 +302,12 @@ const jurisdictionFlags: Record<string, string> = {
   'Île de Man': 'im', 'Isle of Man': 'im',
 
   'Union européenne': 'eu', 'European Union': 'eu',
-};
+}
 
-const getFlagUrl = (jurisdictionName: string) => {
+const getFlagUrl = (jurisdictionName: string): string | null => {
   const normalizedName = jurisdictionName.trim()
-  const code = jurisdictionFlags[normalizedName] || 'un'
+  const code = jurisdictionFlags[normalizedName]
+  if (!code) return null
   return `https://flagcdn.com/w20/${code}.png`
 }
 
@@ -338,16 +339,16 @@ type GroupBy = 'status' | 'type'
 type ViewMode = 'table' | 'cards'
 
 const statusColors: Record<string, { bg: string; border: string; text: string }> = {
-  active:   { bg: 'bg-emerald-950/40', border: 'border-emerald-700', text: 'text-emerald-400' },
-  draft:    { bg: 'bg-amber-950/40',   border: 'border-amber-700',   text: 'text-amber-400'   },
-  archived: { bg: 'bg-slate-950/50',   border: 'border-slate-700',  text: 'text-slate-400'   },
+  active: { bg: 'bg-emerald-950/40', border: 'border-emerald-700', text: 'text-emerald-400' },
+  draft: { bg: 'bg-amber-950/40', border: 'border-amber-700', text: 'text-amber-400' },
+  archived: { bg: 'bg-slate-950/50', border: 'border-slate-700', text: 'text-slate-400' },
 }
 
 const typeColors: Record<string, { bg: string; border: string; text: string }> = {
-  standard:        { bg: 'bg-emerald-950/40', border: 'border-emerald-700', text: 'text-emerald-400' },
-  regulation:      { bg: 'bg-violet-950/40',  border: 'border-violet-700',  text: 'text-violet-400' },
-  contract:        { bg: 'bg-amber-950/40',   border: 'border-amber-700',   text: 'text-amber-400'  },
-  internal_policy: { bg: 'bg-indigo-950/40',  border: 'border-indigo-700',  text: 'text-indigo-400' },
+  standard: { bg: 'bg-emerald-950/40', border: 'border-emerald-700', text: 'text-emerald-400' },
+  regulation: { bg: 'bg-violet-950/40', border: 'border-violet-700', text: 'text-violet-400' },
+  contract: { bg: 'bg-amber-950/40', border: 'border-amber-700', text: 'text-amber-400' },
+  internal_policy: { bg: 'bg-indigo-950/40', border: 'border-indigo-700', text: 'text-indigo-400' },
 }
 
 export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
@@ -357,42 +358,42 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
   const [groupBy, setGroupBy] = useState<GroupBy>('status')
   const [exportLoading, setExportLoading] = useState(false)
 
-  // Statistiques
+
   const statusStats = useMemo(() => {
     const data = frameworks.data
     const total = data.length
-    const active   = data.filter(f => f.status?.toLowerCase() === 'active').length
-    const draft    = data.filter(f => f.status?.toLowerCase() === 'draft').length
+    const active = data.filter(f => f.status?.toLowerCase() === 'active').length
+    const draft = data.filter(f => f.status?.toLowerCase() === 'draft').length
     const archived = data.filter(f => f.status?.toLowerCase() === 'archived').length
 
     return {
       total,
       items: [
-        { label: 'Total', count: total, percent: 100, color: 'blue', icon: Building2 },
-        { label: 'Active', count: active, percent: total ? Math.round((active / total) * 100) : 0, color: 'emerald', icon: CheckCircle2 },
-        { label: 'Draft', count: draft, percent: total ? Math.round((draft / total) * 100) : 0, color: 'amber', icon: FileText },
-        { label: 'Archived', count: archived, percent: total ? Math.round((archived / total) * 100) : 0, color: 'slate', icon: Archive },
-      ]
+        { label: 'Total', count: total, percent: 100, barClass: 'bg-blue-500', icon: Building2 },
+        { label: 'Active', count: active, percent: total ? Math.round((active / total) * 100) : 0, barClass: 'bg-emerald-500', icon: CheckCircle2 },
+        { label: 'Draft', count: draft, percent: total ? Math.round((draft / total) * 100) : 0, barClass: 'bg-amber-500', icon: FileText },
+        { label: 'Archived', count: archived, percent: total ? Math.round((archived / total) * 100) : 0, barClass: 'bg-slate-500', icon: Archive },
+      ],
     }
   }, [frameworks.data])
 
   const typeStats = useMemo(() => {
     const data = frameworks.data
     const total = data.length
-    const standard       = data.filter(f => f.type?.toLowerCase() === 'standard').length
-    const regulation     = data.filter(f => f.type?.toLowerCase() === 'regulation').length
-    const contract       = data.filter(f => f.type?.toLowerCase() === 'contract').length
+    const standard = data.filter(f => f.type?.toLowerCase() === 'standard').length
+    const regulation = data.filter(f => f.type?.toLowerCase() === 'regulation').length
+    const contract = data.filter(f => f.type?.toLowerCase() === 'contract').length
     const internalPolicy = data.filter(f => f.type?.toLowerCase() === 'internal_policy').length
 
     return {
       total,
       items: [
-        { label: 'Total', count: total, percent: 100, color: 'blue', icon: Building2 },
-        { label: 'Standard', count: standard, percent: total ? Math.round((standard / total) * 100) : 0, color: 'emerald', icon: Layers },
-        { label: 'Regulation', count: regulation, percent: total ? Math.round((regulation / total) * 100) : 0, color: 'violet', icon: Globe },
-        { label: 'Contract', count: contract, percent: total ? Math.round((contract / total) * 100) : 0, color: 'amber', icon: FileText },
-        { label: 'Internal Policy', count: internalPolicy, percent: total ? Math.round((internalPolicy / total) * 100) : 0, color: 'indigo', icon: Building2 },
-      ]
+        { label: 'Total', count: total, percent: 100, barClass: 'bg-blue-500', icon: Building2 },
+        { label: 'Standard', count: standard, percent: total ? Math.round((standard / total) * 100) : 0, barClass: 'bg-emerald-500', icon: Layers },
+        { label: 'Regulation', count: regulation, percent: total ? Math.round((regulation / total) * 100) : 0, barClass: 'bg-violet-500', icon: Globe },
+        { label: 'Contract', count: contract, percent: total ? Math.round((contract / total) * 100) : 0, barClass: 'bg-amber-500', icon: FileText },
+        { label: 'Internal Policy', count: internalPolicy, percent: total ? Math.round((internalPolicy / total) * 100) : 0, barClass: 'bg-indigo-500', icon: Building2 },
+      ],
     }
   }, [frameworks.data])
 
@@ -423,7 +424,6 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
     }
   }
 
-  // Données groupées pour Kanban
   const groupedData = useMemo(() => {
     return frameworks.data.reduce((acc, fw) => {
       const key = groupBy === 'status'
@@ -444,7 +444,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
     keys: ['standard', 'regulation', 'contract', 'internal_policy'],
     getTitle: (key: string) =>
       key === 'internal_policy' ? 'Internal Policy' :
-      key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
     colors: typeColors,
     field: 'type' as const,
   }
@@ -460,14 +460,10 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
     router.put(`/frameworks/${frameworkId}`, { [columnConfig.field]: newValue }, {
       preserveState: true,
       preserveScroll: true,
-      onSuccess: () => {
-        // toast.success("Framework updated")
-      },
       onError: (errors) => console.error('Update failed', errors),
     })
   }
 
-  // ─── Colonnes du tableau ────────────────────────────────
   const columns: ColumnDef<Framework>[] = [
     {
       accessorKey: 'code',
@@ -550,17 +546,25 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
               const flagUrl = getFlagUrl(name)
               return (
                 <Badge key={i} variant="outline" className="text-xs flex items-center gap-1 px-2 py-0.5">
-                  <img
-                    src={flagUrl}
-                    alt={`${name} flag`}
-                    className="w-4 h-3 rounded-sm object-cover"
-                    loading="lazy"
-                  />
+                  {flagUrl ? (
+                    <img
+                      src={flagUrl}
+                      alt={`${name} flag`}
+                      className="w-4 h-3 rounded-sm object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <Globe2 className="h-3.5 w-3.5 text-emerald-400" />
+                  )}
                   {name}
                 </Badge>
               )
             })}
-            {items.length > 5 && <Badge variant="outline" className="text-xs px-2 py-0.5">+{items.length - 5}</Badge>}
+            {items.length > 5 && (
+              <Badge variant="outline" className="text-xs px-2 py-0.5">
+                +{items.length - 5}
+              </Badge>
+            )}
           </div>
         )
       },
@@ -602,7 +606,9 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
               const name = typeof tag === 'string' ? tag : (tag as RelationItem).name || '—'
               return <Badge key={i} variant="secondary" className="text-xs">{name}</Badge>
             })}
-            {tags.length > 3 && <Badge variant="secondary" className="text-xs">+{tags.length - 3}</Badge>}
+            {tags.length > 3 && (
+              <Badge variant="secondary" className="text-xs">+{tags.length - 3}</Badge>
+            )}
           </div>
         )
       },
@@ -661,7 +667,6 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
 
       <div className="container mx-auto space-y-6 py-6 px-4 md:px-6 lg:px-8">
 
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Frameworks</h1>
@@ -677,26 +682,6 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                 New Framework
               </Link>
             </Button>
-
-          {/*   <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleExport}
-                    disabled={exportLoading}
-                  >
-                    {exportLoading ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Export to Excel</TooltipContent>
-              </Tooltip>
-            </TooltipProvider> */}
 
             <Tabs
               value={viewMode}
@@ -717,7 +702,6 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {currentStats.items.map((stat, i) => (
             <Card
@@ -741,7 +725,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                 </div>
                 <div className="mt-3 h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-1000 ease-out bg-${stat.color}-600`}
+                    className={`h-full rounded-full transition-all duration-1000 ease-out ${stat.barClass}`}
                     style={{ width: `${stat.percent}%` }}
                   />
                 </div>
@@ -752,6 +736,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
 
         <Separator className="my-6" />
 
+        {/* ── Vue Tableau / Kanban ────────────────────────── */}
         {viewMode === 'table' ? (
           <ServerDataTable
             columns={columns}
@@ -810,7 +795,11 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                 <div className="grid grid-flow-col auto-cols-[minmax(320px,1fr)] gap-5 lg:gap-6">
                   {columnConfig.keys.map((key) => {
                     const items = groupedData[key] || []
-                    const color = columnConfig.colors[key] || { bg: 'bg-muted/40', border: 'border-muted', text: 'text-muted-foreground' }
+                    const color = columnConfig.colors[key] || {
+                      bg: 'bg-muted/40',
+                      border: 'border-muted',
+                      text: 'text-muted-foreground',
+                    }
 
                     return (
                       <Droppable droppableId={key} key={key}>
@@ -819,15 +808,15 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                             ref={provided.innerRef}
                             {...provided.droppableProps}
                             className={cn(
-                              "flex flex-col min-w-[320px] rounded-xl border bg-gradient-to-b from-card/80 to-card/40 shadow-sm transition-all duration-200",
-                              snapshot.isDraggingOver && "ring-2 ring-primary/50 shadow-xl"
+                              'flex flex-col min-w-[320px] rounded-xl border bg-gradient-to-b from-card/80 to-card/40 shadow-sm transition-all duration-200',
+                              snapshot.isDraggingOver && 'ring-2 ring-primary/50 shadow-xl'
                             )}
                           >
                             <div className={cn(
-                              "px-5 py-4 rounded-t-xl border-b font-medium text-lg flex items-center justify-between",
+                              'px-5 py-4 rounded-t-xl border-b font-medium text-lg flex items-center justify-between',
                               color.bg,
                               color.border,
-                              "border-b-2"
+                              'border-b-2'
                             )}>
                               <span>{columnConfig.getTitle(key)}</span>
                               <Badge variant="outline" className="bg-background/70">
@@ -848,10 +837,10 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                                         ref={dragProvided.innerRef}
                                         {...dragProvided.draggableProps}
                                         className={cn(
-                                          "transition-all duration-200 cursor-grab active:cursor-grabbing",
+                                          'transition-all duration-200 cursor-grab active:cursor-grabbing',
                                           dragSnapshot.isDragging
-                                            ? "shadow-2xl ring-2 ring-primary/60 scale-[1.02]"
-                                            : "hover:shadow-md hover:ring-1 hover:ring-primary/30"
+                                            ? 'shadow-2xl ring-2 ring-primary/60 scale-[1.02]'
+                                            : 'hover:shadow-md hover:ring-1 hover:ring-primary/30'
                                         )}
                                       >
                                         <CardContent className="p-4 space-y-3">
@@ -880,8 +869,9 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                                             <Badge
                                               variant="outline"
                                               className={cn(
-                                                "text-xs",
-                                                statusColors[fw.status?.toLowerCase() as keyof typeof statusColors]?.text || 'text-muted-foreground'
+                                                'text-xs',
+                                                statusColors[fw.status?.toLowerCase() as keyof typeof statusColors]?.text
+                                                || 'text-muted-foreground'
                                               )}
                                             >
                                               {fw.status || '—'}
@@ -899,12 +889,17 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                                                     variant="outline"
                                                     className="text-xs flex items-center gap-1.5 px-2.5 py-1"
                                                   >
-                                                    <img
-                                                      src={flagUrl}
-                                                      alt={`${name} flag`}
-                                                      className="w-5 h-4 rounded-sm object-cover"
-                                                      loading="lazy"
-                                                    />
+
+                                                    {flagUrl ? (
+                                                      <img
+                                                        src={flagUrl}
+                                                        alt={`${name} flag`}
+                                                        className="w-5 h-4 rounded-sm object-cover"
+                                                        loading="lazy"
+                                                      />
+                                                    ) : (
+                                                      <Globe2 className="h-3.5 w-3.5 text-emerald-400" />
+                                                    )}
                                                     <span className="truncate max-w-[140px]">{name}</span>
                                                   </Badge>
                                                 )
@@ -921,7 +916,11 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                                             <div className="flex flex-wrap gap-1.5 pt-1">
                                               {fw.tags.slice(0, 4).map((tag, i) => {
                                                 const name = typeof tag === 'string' ? tag : (tag as RelationItem).name || '—'
-                                                return <Badge key={i} variant="secondary" className="text-xs">{name}</Badge>
+                                                return (
+                                                  <Badge key={i} variant="secondary" className="text-xs">
+                                                    {name}
+                                                  </Badge>
+                                                )
                                               })}
                                               {fw.tags.length > 4 && (
                                                 <Badge variant="secondary" className="text-xs">

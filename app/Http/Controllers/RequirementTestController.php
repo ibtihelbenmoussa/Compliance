@@ -108,17 +108,29 @@ class RequirementTestController extends Controller
             ->with('success', 'Test created successfully.');
     }
 
-   public function show(RequirementTest $requirementTest)
+public function show(RequirementTest $requirementTest)
 {
-    // $this->authorize('view', $requirementTest);   ← commente cette ligne
+    $requirement = $requirementTest->requirement;
 
-    $requirementTest->load(['requirement.framework', 'user', 'framework']);
+    if (!$requirement) {
+        abort(404, 'Requirement not found for this test.');
+    }
 
-    return Inertia::render('RequirementTests/Show', [
-        'test' => $requirementTest,
+    $user = Auth::user();
+    $currentOrgId = $user->current_organization_id;
+
+    if ($requirement->organization_id != $currentOrgId || $requirement->is_deleted) {
+        abort(403, 'Unauthorized');
+    }
+
+    $requirement->framework_name = $requirement->framework?->name;
+    $requirement->process_name = $requirement->process?->name;
+    $requirement->load('tags');
+
+    return Inertia::render('RequirementTests/show', [
+        'requirement' => $requirement,
     ]);
 }
-
     public function edit(RequirementTest $requirementTest)
     {
         $this->authorize('update', $requirementTest);

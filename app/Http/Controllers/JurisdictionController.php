@@ -22,30 +22,33 @@ class JurisdictionController extends Controller
             ->get();
     }
  
-    /** =========================
-     *  CREATE
-     * ========================= */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:jurisdictions,name,NULL,id,organization_id,' . $this->orgId(),
-        ]);
+
+public function store(Request $request)
+{
+    $validated = $request->validate([
+        'name' => [
+            'required',
+            'string',
+            'max:255',
+            \Illuminate\Validation\Rule::unique('jurisdictions', 'name')
+                ->where('organization_id', $this->orgId())
+                ->where('is_deleted', 0), // ✅ pas whereNull('deleted_at')
+        ],
+    ]);
+
+    Jurisdiction::create([
+        'name'            => trim($validated['name']),
+        'organization_id' => $this->orgId(),
+        'is_deleted'      => 0,
+    ]);
+
+    return redirect()->back()->with([
+        'success'       => 'Jurisdiction created successfully',
+        'jurisdictions' => $this->activeJurisdictions(),
+    ]);
+}
  
-        Jurisdiction::create([
-            'name' => trim($validated['name']),
-            'organization_id' => $this->orgId(),
-            'is_deleted' => 0,
-        ]);
- 
-        return redirect()->back()->with([
-            'success' => 'Jurisdiction created successfully',
-            'jurisdictions' => $this->activeJurisdictions(),
-        ]);
-    }
- 
-    /** =========================
-     *  UPDATE
-     * ========================= */
+  
     public function update(Request $request, Jurisdiction $jurisdiction)
     {
         if ($jurisdiction->organization_id !== $this->orgId()) {
@@ -69,32 +72,29 @@ class JurisdictionController extends Controller
         ]);
     }
  
-    /** =========================
-     *  DELETE
-     * ========================= */
+
     public function destroy(Jurisdiction $jurisdiction)
-    {
-        if ($jurisdiction->organization_id !== $this->orgId()) {
-            abort(403);
-        }
- 
-        // ✅ Vérifier dans JSON column
-        $used = Framework::where('is_deleted', 0)
-            ->whereJsonContains('jurisdictions', (int) $jurisdiction->id)
-            ->exists();
- 
-        if ($used) {
-            return redirect()->back()->with(
-                'error',
-                'This jurisdiction is assigned to a framework.'
-            );
-        }
- 
-        $jurisdiction->update(['is_deleted' => 1]);
- 
-        return redirect()->back()->with([
-            'success' => 'Jurisdiction deleted successfully',
-            'jurisdictions' => $this->activeJurisdictions(),
-        ]);
+{
+    if ($jurisdiction->organization_id !== $this->orgId()) {
+        abort(403);
     }
+
+    $used = $jurisdiction->frameworks()
+        ->where('is_deleted', 0)
+        ->exists();
+
+    if ($used) {
+        return redirect()->back()->with(
+            'error',
+            'This jurisdiction is assigned to one or more frameworks and cannot be deleted.'
+        );
+    }
+
+    $jurisdiction->update(['is_deleted' => 1]);
+
+    return redirect()->back()->with([
+        'success'       => 'Jurisdiction deleted successfully',
+        'jurisdictions' => $this->activeJurisdictions(),
+    ]);
+}
 }
