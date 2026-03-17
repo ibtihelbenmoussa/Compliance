@@ -46,6 +46,7 @@ return new class extends Migration {
 
             $table->text('attachments')->nullable();
              $table->integer('is_deleted')->default(0);
+              $table->boolean('auto_validate')->default(false)->after('attachments');
 
             $table->timestamps();
         });

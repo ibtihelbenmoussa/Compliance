@@ -25,6 +25,7 @@ class RequirementTest extends Model
         'validation_status' => 'string',          // ENUM → string
         'created_at'        => 'datetime',
         'updated_at'        => 'datetime',
+        'failure_reason'    => 'string', 
     ];
 
     // Relations

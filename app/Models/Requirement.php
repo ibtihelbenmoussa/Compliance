@@ -33,6 +33,7 @@ class Requirement extends Model
        // 'tags' => 'array',
         'deadline' => 'date',
         'completion_date' => 'date',
+        'auto_validate'   => 'boolean',
     ];
     public function framework()
     {
@@ -56,5 +57,12 @@ public function tags()
         'requirment_id',
         'tags_id'
     )->withTimestamps();
+}
+
+
+
+public function predefinedTests(): HasMany
+{
+    return $this->hasMany(PredefinedTestRequirment::class);
 }
 }

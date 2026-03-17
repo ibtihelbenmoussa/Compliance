@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
         Schema::create('requirement_tests', function (Blueprint $table) {
@@ -19,10 +18,13 @@ return new class extends Migration
             $table->enum('efficacy', ['effective', 'partially_effective', 'ineffective'])->nullable();
             $table->date('effective_date')->nullable();
             $table->date('test_date')->nullable();
+            Schema::table('requirement_tests', function (Blueprint $table) {
+                $table->text('failure_reason')->nullable()->after('result');
+            });
 
             // Relations
             $table->foreignId('requirement_id')->constrained()->onDelete('cascade');
-            $table->foreignId('framework_id')->nullable()->constrained()->onDelete('set null'); 
+            $table->foreignId('framework_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('user_id')->constrained()->onDelete('restrict');
 
             // Statut

@@ -14,54 +14,62 @@ use Illuminate\Validation\Rule;
 class FrameworkController extends Controller
 {
 
-    public function index(Request $request)
-    {
-        $user = auth()->user();
-        $currentOrgId = $user->current_organization_id;
+public function index(Request $request)
+{
+    $user = auth()->user();
+    $currentOrgId = $user->current_organization_id;
 
-        if (!$currentOrgId) {
-            return redirect()->route('organizations.select.page')
-                ->with('error', 'Veuillez sélectionner une organisation d\'abord.');
-        }
-
-        $frameworks = Framework::where('is_deleted', 0)
-            ->where('organization_id', $currentOrgId)
-            ->with(['tags:id,name', 'jurisdictions:id,name'])
-            ->when($request->filled('search'), function ($q) use ($request) {
-                $search = $request->search;
-                $q->where(function ($query) use ($search) {
-                    $query->where('name', 'like', "%{$search}%")
-                        ->orWhere('code', 'like', "%{$search}%");
-                });
-            })
-            ->when($request->filled('filter.status'), function ($q) use ($request) {
-                $q->where('status', $request->input('filter.status'));
-            })
-            ->when($request->filled('filter.type') && $request->input('filter.type') !== 'all', function ($q) use ($request) {
-                $q->where('type', $request->input('filter.type'));
-            })
-            ->when($request->filled('sort'), function ($q) use ($request) {
-                $sort = $request->sort;
-                $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
-                $column = ltrim($sort, '-');
-                $q->orderBy($column, $direction);
-            }, function ($q) {
-                $q->orderBy('created_at', 'desc');
-            })
-            ->paginate(15)
-            ->withQueryString();
-
-        // Transform to only send names
-        $frameworks->getCollection()->transform(function ($fw) {
-            $fw->tags = $fw->tags->pluck('name')->toArray();
-            $fw->jurisdictions = $fw->jurisdictions->pluck('name')->toArray();
-            return $fw;
-        });
-
-        return Inertia::render('Frameworks/Index', [
-            'frameworks' => $frameworks
-        ]);
+    if (!$currentOrgId) {
+        return redirect()->route('organizations.select.page')
+            ->with('error', 'Veuillez sélectionner une organisation d\'abord.');
     }
+
+    $perPage = (int) $request->input('per_page', 10);
+    $perPage = in_array($perPage, [10, 15, 20, 30, 50]) ? $perPage : 10;
+
+    $frameworks = Framework::where('is_deleted', 0)
+        ->where('organization_id', $currentOrgId)
+        ->with(['tags:id,name', 'jurisdictions:id,name'])
+        ->when($request->filled('search'), function ($q) use ($request) {
+            $search = $request->search;
+            $q->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('code', 'like', "%{$search}%");
+            });
+        })
+        ->when($request->filled('filter.status'), function ($q) use ($request) {
+            $q->where('status', $request->input('filter.status'));
+        })
+        ->when(
+            $request->filled('filter.type') && $request->input('filter.type') !== 'all',
+            function ($q) use ($request) {
+                $q->where('type', $request->input('filter.type'));
+            }
+        )
+        ->when($request->filled('sort'), function ($q) use ($request) {
+            $sort      = $request->sort;
+            $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
+            $column    = ltrim($sort, '-');
+            $allowed   = ['code', 'name', 'version', 'type', 'publisher', 'status', 'created_at'];
+            if (in_array($column, $allowed)) {
+                $q->orderBy($column, $direction);
+            }
+        }, function ($q) {
+            $q->orderBy('created_at', 'desc');
+        })
+        ->paginate($perPage)
+        ->withQueryString();
+
+    $frameworks->getCollection()->transform(function ($fw) {
+        $fw->tags          = $fw->tags->pluck('name')->toArray();
+        $fw->jurisdictions = $fw->jurisdictions->pluck('name')->toArray();
+        return $fw;
+    });
+
+    return Inertia::render('Frameworks/Index', [
+        'frameworks' => $frameworks,
+    ]);
+}
     public function create()
     {
         $user = auth()->user();

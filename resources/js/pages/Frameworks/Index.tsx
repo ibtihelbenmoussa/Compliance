@@ -142,7 +142,6 @@ const jurisdictionFlags: Record<string, string> = {
   'Ouganda': 'ug', 'Uganda': 'ug',
   'Zambie': 'zm', 'Zambia': 'zm',
   'Zimbabwe': 'zw',
-
   'Antigua-et-Barbuda': 'ag', 'Antigua and Barbuda': 'ag',
   'Bahamas': 'bs',
   'Barbade': 'bb', 'Barbados': 'bb',
@@ -165,8 +164,7 @@ const jurisdictionFlags: Record<string, string> = {
   'Sainte-Lucie': 'lc', 'Saint Lucia': 'lc',
   'Saint-Vincent-et-les-Grenadines': 'vc', 'Saint Vincent and the Grenadines': 'vc',
   'Trinité-et-Tobago': 'tt', 'Trinidad and Tobago': 'tt',
-  'États-Unis': 'us', 'United States': 'us', 'USA': 'us', 'États-Unis d\'Amérique': 'us',
-
+  'États-Unis': 'us', 'United States': 'us', 'USA': 'us', "États-Unis d'Amérique": 'us',
   'Argentine': 'ar', 'Argentina': 'ar',
   'Bolivie': 'bo', 'Bolivia': 'bo',
   'Brésil': 'br', 'Brazil': 'br',
@@ -179,7 +177,6 @@ const jurisdictionFlags: Record<string, string> = {
   'Suriname': 'sr',
   'Uruguay': 'uy',
   'Venezuela': 've',
-
   'Afghanistan': 'af',
   'Arménie': 'am', 'Armenia': 'am',
   'Azerbaïdjan': 'az', 'Azerbaijan': 'az',
@@ -227,7 +224,6 @@ const jurisdictionFlags: Record<string, string> = {
   'Turquie': 'tr', 'Turkey': 'tr',
   'Viêt Nam': 'vn', 'Vietnam': 'vn',
   'Yémen': 'ye', 'Yemen': 'ye',
-
   'Albanie': 'al', 'Albania': 'al',
   'Allemagne': 'de', 'Germany': 'de',
   'Andorre': 'ad', 'Andorra': 'ad',
@@ -271,7 +267,6 @@ const jurisdictionFlags: Record<string, string> = {
   'Suisse': 'ch', 'Switzerland': 'ch',
   'Tchéquie': 'cz', 'Czech Republic': 'cz', 'République tchèque': 'cz',
   'Ukraine': 'ua',
-
   'Australie': 'au', 'Australia': 'au',
   'Fidji': 'fj', 'Fiji': 'fj',
   'Kiribati': 'ki',
@@ -286,7 +281,6 @@ const jurisdictionFlags: Record<string, string> = {
   'Tonga': 'to',
   'Tuvalu': 'tv',
   'Vanuatu': 'vu',
-
   'Hong Kong': 'hk',
   'Macao': 'mo', 'Macau': 'mo',
   'Taïwan': 'tw', 'Taiwan': 'tw',
@@ -300,7 +294,6 @@ const jurisdictionFlags: Record<string, string> = {
   'Guernesey': 'gg',
   'Jersey': 'je',
   'Île de Man': 'im', 'Isle of Man': 'im',
-
   'Union européenne': 'eu', 'European Union': 'eu',
 }
 
@@ -331,89 +324,123 @@ export interface Framework {
   updated_at?: string | null
 }
 
+// ──────────────────────────────────────────────────────────────
+// Type étendu pour refléter exactement ce que Laravel renvoie
+// via paginate()->withQueryString()
+// ──────────────────────────────────────────────────────────────
+interface LaravelPaginator<T> {
+  data: T[]
+  current_page: number
+  last_page: number
+  per_page: number
+  total: number
+  from: number
+  to: number
+  first_page_url: string       // ← requis par PaginatedData
+  last_page_url: string        // ← requis par PaginatedData
+  prev_page_url: string | null
+  next_page_url: string | null
+  links: {
+    url: string | null
+    label: string
+    active: boolean
+  }[]
+  path: string
+}
+
 interface FrameworksIndexProps {
-  frameworks: PaginatedData<Framework>
+  frameworks: LaravelPaginator<Framework>
 }
 
 type GroupBy = 'status' | 'type'
 type ViewMode = 'table' | 'cards'
 
 const statusColors: Record<string, { bg: string; border: string; text: string }> = {
-  active: { bg: 'bg-emerald-950/40', border: 'border-emerald-700', text: 'text-emerald-400' },
-  draft: { bg: 'bg-amber-950/40', border: 'border-amber-700', text: 'text-amber-400' },
-  archived: { bg: 'bg-slate-950/50', border: 'border-slate-700', text: 'text-slate-400' },
+  active:   { bg: 'bg-emerald-950/40', border: 'border-emerald-700', text: 'text-emerald-400' },
+  draft:    { bg: 'bg-amber-950/40',   border: 'border-amber-700',   text: 'text-amber-400'   },
+  archived: { bg: 'bg-slate-950/50',   border: 'border-slate-700',   text: 'text-slate-400'   },
 }
 
 const typeColors: Record<string, { bg: string; border: string; text: string }> = {
-  standard: { bg: 'bg-emerald-950/40', border: 'border-emerald-700', text: 'text-emerald-400' },
-  regulation: { bg: 'bg-violet-950/40', border: 'border-violet-700', text: 'text-violet-400' },
-  contract: { bg: 'bg-amber-950/40', border: 'border-amber-700', text: 'text-amber-400' },
-  internal_policy: { bg: 'bg-indigo-950/40', border: 'border-indigo-700', text: 'text-indigo-400' },
+  standard:        { bg: 'bg-emerald-950/40', border: 'border-emerald-700', text: 'text-emerald-400' },
+  regulation:      { bg: 'bg-violet-950/40',  border: 'border-violet-700',  text: 'text-violet-400'  },
+  contract:        { bg: 'bg-amber-950/40',   border: 'border-amber-700',   text: 'text-amber-400'   },
+  internal_policy: { bg: 'bg-indigo-950/40',  border: 'border-indigo-700',  text: 'text-indigo-400'  },
 }
 
 export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen]   = useState(false)
   const [frameworkToDelete, setFrameworkToDelete] = useState<Framework | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('table')
-  const [groupBy, setGroupBy] = useState<GroupBy>('status')
+  const [groupBy, setGroupBy]   = useState<GroupBy>('status')
   const [exportLoading, setExportLoading] = useState(false)
 
-
+  // ── Stats ────────────────────────────────────────────────────
+  // On utilise frameworks.total (total réel) pour l'affichage global,
+  // mais les répartitions par status/type ne portent que sur la page
+  // courante (seul frameworks.data est disponible côté front).
+  // Pour des stats globales exactes il faudrait les passer séparément
+  // depuis le contrôleur – ici on garde le comportement original
+  // mais en corrigeant le "total" affiché.
   const statusStats = useMemo(() => {
-    const data = frameworks.data
-    const total = data.length
-    const active = data.filter(f => f.status?.toLowerCase() === 'active').length
-    const draft = data.filter(f => f.status?.toLowerCase() === 'draft').length
+    const data  = frameworks.data
+    const total = frameworks.total   // ← CORRECTION : total réel
+
+    const active   = data.filter(f => f.status?.toLowerCase() === 'active').length
+    const draft    = data.filter(f => f.status?.toLowerCase() === 'draft').length
     const archived = data.filter(f => f.status?.toLowerCase() === 'archived').length
+    const pageSize = data.length || 1
 
     return {
       total,
       items: [
-        { label: 'Total', count: total, percent: 100, barClass: 'bg-blue-500', icon: Building2 },
-        { label: 'Active', count: active, percent: total ? Math.round((active / total) * 100) : 0, barClass: 'bg-emerald-500', icon: CheckCircle2 },
-        { label: 'Draft', count: draft, percent: total ? Math.round((draft / total) * 100) : 0, barClass: 'bg-amber-500', icon: FileText },
-        { label: 'Archived', count: archived, percent: total ? Math.round((archived / total) * 100) : 0, barClass: 'bg-slate-500', icon: Archive },
+        { label: 'Total',    count: total,    percent: 100, barClass: 'bg-blue-500',    icon: Building2   },
+        { label: 'Active',   count: active,   percent: Math.round((active   / pageSize) * 100), barClass: 'bg-emerald-500', icon: CheckCircle2 },
+        { label: 'Draft',    count: draft,    percent: Math.round((draft    / pageSize) * 100), barClass: 'bg-amber-500',   icon: FileText     },
+        { label: 'Archived', count: archived, percent: Math.round((archived / pageSize) * 100), barClass: 'bg-slate-500',   icon: Archive      },
       ],
     }
-  }, [frameworks.data])
+  }, [frameworks.data, frameworks.total])
 
   const typeStats = useMemo(() => {
-    const data = frameworks.data
-    const total = data.length
-    const standard = data.filter(f => f.type?.toLowerCase() === 'standard').length
-    const regulation = data.filter(f => f.type?.toLowerCase() === 'regulation').length
-    const contract = data.filter(f => f.type?.toLowerCase() === 'contract').length
+    const data  = frameworks.data
+    const total = frameworks.total   // ← CORRECTION : total réel
+
+    const standard       = data.filter(f => f.type?.toLowerCase() === 'standard').length
+    const regulation     = data.filter(f => f.type?.toLowerCase() === 'regulation').length
+    const contract       = data.filter(f => f.type?.toLowerCase() === 'contract').length
     const internalPolicy = data.filter(f => f.type?.toLowerCase() === 'internal_policy').length
+    const pageSize = data.length || 1
 
     return {
       total,
       items: [
-        { label: 'Total', count: total, percent: 100, barClass: 'bg-blue-500', icon: Building2 },
-        { label: 'Standard', count: standard, percent: total ? Math.round((standard / total) * 100) : 0, barClass: 'bg-emerald-500', icon: Layers },
-        { label: 'Regulation', count: regulation, percent: total ? Math.round((regulation / total) * 100) : 0, barClass: 'bg-violet-500', icon: Globe },
-        { label: 'Contract', count: contract, percent: total ? Math.round((contract / total) * 100) : 0, barClass: 'bg-amber-500', icon: FileText },
-        { label: 'Internal Policy', count: internalPolicy, percent: total ? Math.round((internalPolicy / total) * 100) : 0, barClass: 'bg-indigo-500', icon: Building2 },
+        { label: 'Total',           count: total,          percent: 100, barClass: 'bg-blue-500',    icon: Building2 },
+        { label: 'Standard',        count: standard,       percent: Math.round((standard       / pageSize) * 100), barClass: 'bg-emerald-500', icon: Layers   },
+        { label: 'Regulation',      count: regulation,     percent: Math.round((regulation     / pageSize) * 100), barClass: 'bg-violet-500',  icon: Globe    },
+        { label: 'Contract',        count: contract,       percent: Math.round((contract       / pageSize) * 100), barClass: 'bg-amber-500',   icon: FileText },
+        { label: 'Internal Policy', count: internalPolicy, percent: Math.round((internalPolicy / pageSize) * 100), barClass: 'bg-indigo-500',  icon: Building2 },
       ],
     }
-  }, [frameworks.data])
+  }, [frameworks.data, frameworks.total])
 
   const currentStats = groupBy === 'status' ? statusStats : typeStats
 
+  // ── Export ───────────────────────────────────────────────────
   const handleExport = async () => {
     setExportLoading(true)
     try {
-      const params = new URLSearchParams(window.location.search)
+      const params   = new URLSearchParams(window.location.search)
       const response = await fetch(`/frameworks/export?${params.toString()}`, {
-        method: 'GET',
+        method:  'GET',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       })
-
       if (!response.ok) throw new Error('Export failed')
 
       const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
+      const url  = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.href = url
+      link.href     = url
       link.download = `frameworks-${new Date().toISOString().split('T')[0]}.xlsx`
       link.click()
       window.URL.revokeObjectURL(url)
@@ -424,11 +451,12 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
     }
   }
 
+  // ── Kanban grouping ──────────────────────────────────────────
   const groupedData = useMemo(() => {
     return frameworks.data.reduce((acc, fw) => {
       const key = groupBy === 'status'
         ? (fw.status || 'other').toLowerCase()
-        : (fw.type || 'other').toLowerCase()
+        : (fw.type   || 'other').toLowerCase()
       acc[key] = acc[key] || []
       acc[key].push(fw)
       return acc
@@ -455,15 +483,22 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
     if (source.droppableId === destination.droppableId && source.index === destination.index) return
 
     const frameworkId = Number(draggableId)
-    const newValue = destination.droppableId
+    const newValue    = destination.droppableId
 
     router.put(`/frameworks/${frameworkId}`, { [columnConfig.field]: newValue }, {
-      preserveState: true,
+      preserveState:  true,
       preserveScroll: true,
       onError: (errors) => console.error('Update failed', errors),
     })
   }
 
+  // ── Pagination manuelle (utilisée uniquement hors ServerDataTable) ──
+  const goToPage = (url: string | null) => {
+    if (!url) return
+    router.get(url, {}, { preserveState: true, preserveScroll: true })
+  }
+
+  // ── Columns ──────────────────────────────────────────────────
   const columns: ColumnDef<Framework>[] = [
     {
       accessorKey: 'code',
@@ -542,17 +577,12 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
         return (
           <div className="flex flex-wrap gap-1">
             {items.slice(0, 5).map((item, i) => {
-              const name = typeof item === 'string' ? item : item.name || '—'
+              const name   = typeof item === 'string' ? item : item.name || '—'
               const flagUrl = getFlagUrl(name)
               return (
                 <Badge key={i} variant="outline" className="text-xs flex items-center gap-1 px-2 py-0.5">
                   {flagUrl ? (
-                    <img
-                      src={flagUrl}
-                      alt={`${name} flag`}
-                      className="w-4 h-3 rounded-sm object-cover"
-                      loading="lazy"
-                    />
+                    <img src={flagUrl} alt={`${name} flag`} className="w-4 h-3 rounded-sm object-cover" loading="lazy" />
                   ) : (
                     <Globe2 className="h-3.5 w-3.5 text-emerald-400" />
                   )}
@@ -561,9 +591,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
               )
             })}
             {items.length > 5 && (
-              <Badge variant="outline" className="text-xs px-2 py-0.5">
-                +{items.length - 5}
-              </Badge>
+              <Badge variant="outline" className="text-xs px-2 py-0.5">+{items.length - 5}</Badge>
             )}
           </div>
         )
@@ -667,6 +695,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
 
       <div className="container mx-auto space-y-6 py-6 px-4 md:px-6 lg:px-8">
 
+        {/* ── Header ──────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Frameworks</h1>
@@ -683,11 +712,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
               </Link>
             </Button>
 
-            <Tabs
-              value={viewMode}
-              onValueChange={(v) => setViewMode(v as ViewMode)}
-              className="hidden sm:block"
-            >
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="hidden sm:block">
               <TabsList className="grid w-44 grid-cols-2">
                 <TabsTrigger value="table">
                   <TableIcon className="mr-2 h-4 w-4" />
@@ -702,12 +727,10 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
           </div>
         </div>
 
+        {/* ── Stat cards ──────────────────────────────────────── */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {currentStats.items.map((stat, i) => (
-            <Card
-              key={stat.label}
-              className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5"
-            >
+            <Card key={stat.label} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <stat.icon className="h-4 w-4" />
@@ -736,42 +759,95 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
 
         <Separator className="my-6" />
 
-        {/* ── Vue Tableau / Kanban ────────────────────────── */}
+        {/* ── Vue Tableau / Kanban ────────────────────────────── */}
         {viewMode === 'table' ? (
-          <ServerDataTable
-            columns={columns}
-            data={frameworks}
-            searchPlaceholder="Search code, name, publisher..."
-            onExport={handleExport}
-            exportLoading={exportLoading}
-            filters={
-              <>
-                <DataTableFacetedFilter
-                  filterKey="status"
-                  title="Status"
-                  options={[
-                    { label: 'Active', value: 'active', icon: CheckCircle2 },
-                    { label: 'Draft', value: 'draft', icon: FileText },
-                    { label: 'Archived', value: 'archived', icon: Archive },
-                  ]}
-                />
-                <DataTableSelectFilter
-                  filterKey="type"
-                  title="Type"
-                  placeholder="All types"
-                  options={[
-                    { label: 'All', value: 'all' },
-                    { label: 'Standard', value: 'standard' },
-                    { label: 'Regulation', value: 'regulation' },
-                    { label: 'Contract', value: 'contract' },
-                    { label: 'Internal Policy', value: 'internal_policy' },
-                  ]}
-                />
-              </>
-            }
-            initialState={{ columnPinning: { right: ['actions'] } }}
-          />
+          <>
+            <ServerDataTable
+              columns={columns}
+              data={frameworks}
+              searchPlaceholder="Search code, name, publisher..."
+              onExport={handleExport}
+              exportLoading={exportLoading}
+              filters={
+                <>
+                  <DataTableFacetedFilter
+                    filterKey="status"
+                    title="Status"
+                    options={[
+                      { label: 'Active',   value: 'active',   icon: CheckCircle2 },
+                      { label: 'Draft',    value: 'draft',    icon: FileText     },
+                      { label: 'Archived', value: 'archived', icon: Archive      },
+                    ]}
+                  />
+                  <DataTableSelectFilter
+                    filterKey="type"
+                    title="Type"
+                    placeholder="All types"
+                    options={[
+                      { label: 'All',             value: 'all'             },
+                      { label: 'Standard',        value: 'standard'        },
+                      { label: 'Regulation',      value: 'regulation'      },
+                      { label: 'Contract',        value: 'contract'        },
+                      { label: 'Internal Policy', value: 'internal_policy' },
+                    ]}
+                  />
+                </>
+              }
+              initialState={{ columnPinning: { right: ['actions'] } }}
+            />
+
+            {/* ── Pagination manuelle (fallback si ServerDataTable ne la gère pas) ── */}
+            {frameworks.last_page > 1 && (
+              <div className="flex items-center justify-between px-2 py-4">
+                <p className="text-sm text-muted-foreground">
+                  Showing{' '}
+                  <span className="font-medium">{frameworks.from}</span>
+                  {' '}–{' '}
+                  <span className="font-medium">{frameworks.to}</span>
+                  {' '}of{' '}
+                  <span className="font-medium">{frameworks.total}</span> results
+                </p>
+
+                <div className="flex items-center gap-1">
+                  {/* Previous */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!frameworks.prev_page_url}
+                    onClick={() => goToPage(frameworks.prev_page_url)}
+                  >
+                    Previous
+                  </Button>
+
+                  {/* Numbered links */}
+                  {frameworks.links
+                    .filter(link => !['&laquo; Previous', 'Next &raquo;'].includes(link.label))
+                    .map((link, idx) => (
+                      <Button
+                        key={idx}
+                        variant={link.active ? 'default' : 'outline'}
+                        size="sm"
+                        disabled={!link.url || link.active}
+                        onClick={() => goToPage(link.url)}
+                        dangerouslySetInnerHTML={{ __html: link.label }}
+                      />
+                    ))}
+
+                  {/* Next */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!frameworks.next_page_url}
+                    onClick={() => goToPage(frameworks.next_page_url)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
+          /* ── Kanban ─────────────────────────────────────────── */
           <div className="space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-lg font-semibold tracking-tight">
@@ -796,9 +872,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                   {columnConfig.keys.map((key) => {
                     const items = groupedData[key] || []
                     const color = columnConfig.colors[key] || {
-                      bg: 'bg-muted/40',
-                      border: 'border-muted',
-                      text: 'text-muted-foreground',
+                      bg: 'bg-muted/40', border: 'border-muted', text: 'text-muted-foreground',
                     }
 
                     return (
@@ -814,14 +888,10 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                           >
                             <div className={cn(
                               'px-5 py-4 rounded-t-xl border-b font-medium text-lg flex items-center justify-between',
-                              color.bg,
-                              color.border,
-                              'border-b-2'
+                              color.bg, color.border, 'border-b-2'
                             )}>
                               <span>{columnConfig.getTitle(key)}</span>
-                              <Badge variant="outline" className="bg-background/70">
-                                {items.length}
-                              </Badge>
+                              <Badge variant="outline" className="bg-background/70">{items.length}</Badge>
                             </div>
 
                             <div className="p-4 flex-1 space-y-4 min-h-[500px]">
@@ -860,18 +930,13 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                                           </div>
 
                                           <div className="flex flex-wrap gap-2 pt-2">
-                                            <Badge variant="outline" className="text-xs">
-                                              v{fw.version || '—'}
-                                            </Badge>
-                                            <Badge variant="outline" className="text-xs">
-                                              {fw.type?.replace('_', ' ') || '—'}
-                                            </Badge>
+                                            <Badge variant="outline" className="text-xs">v{fw.version || '—'}</Badge>
+                                            <Badge variant="outline" className="text-xs">{fw.type?.replace('_', ' ') || '—'}</Badge>
                                             <Badge
                                               variant="outline"
                                               className={cn(
                                                 'text-xs',
-                                                statusColors[fw.status?.toLowerCase() as keyof typeof statusColors]?.text
-                                                || 'text-muted-foreground'
+                                                statusColors[fw.status?.toLowerCase() as keyof typeof statusColors]?.text || 'text-muted-foreground'
                                               )}
                                             >
                                               {fw.status || '—'}
@@ -881,22 +946,12 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                                           {fw.jurisdictions && fw.jurisdictions.length > 0 && (
                                             <div className="flex flex-wrap gap-1.5 pt-2">
                                               {fw.jurisdictions.slice(0, 4).map((j, i) => {
-                                                const name = typeof j === 'string' ? j : j.name || '—'
+                                                const name    = typeof j === 'string' ? j : j.name || '—'
                                                 const flagUrl = getFlagUrl(name)
                                                 return (
-                                                  <Badge
-                                                    key={i}
-                                                    variant="outline"
-                                                    className="text-xs flex items-center gap-1.5 px-2.5 py-1"
-                                                  >
-
+                                                  <Badge key={i} variant="outline" className="text-xs flex items-center gap-1.5 px-2.5 py-1">
                                                     {flagUrl ? (
-                                                      <img
-                                                        src={flagUrl}
-                                                        alt={`${name} flag`}
-                                                        className="w-5 h-4 rounded-sm object-cover"
-                                                        loading="lazy"
-                                                      />
+                                                      <img src={flagUrl} alt={`${name} flag`} className="w-5 h-4 rounded-sm object-cover" loading="lazy" />
                                                     ) : (
                                                       <Globe2 className="h-3.5 w-3.5 text-emerald-400" />
                                                     )}
@@ -905,9 +960,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                                                 )
                                               })}
                                               {fw.jurisdictions.length > 4 && (
-                                                <Badge variant="outline" className="text-xs px-2.5 py-1">
-                                                  +{fw.jurisdictions.length - 4}
-                                                </Badge>
+                                                <Badge variant="outline" className="text-xs px-2.5 py-1">+{fw.jurisdictions.length - 4}</Badge>
                                               )}
                                             </div>
                                           )}
@@ -916,16 +969,10 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                                             <div className="flex flex-wrap gap-1.5 pt-1">
                                               {fw.tags.slice(0, 4).map((tag, i) => {
                                                 const name = typeof tag === 'string' ? tag : (tag as RelationItem).name || '—'
-                                                return (
-                                                  <Badge key={i} variant="secondary" className="text-xs">
-                                                    {name}
-                                                  </Badge>
-                                                )
+                                                return <Badge key={i} variant="secondary" className="text-xs">{name}</Badge>
                                               })}
                                               {fw.tags.length > 4 && (
-                                                <Badge variant="secondary" className="text-xs">
-                                                  +{fw.tags.length - 4}
-                                                </Badge>
+                                                <Badge variant="secondary" className="text-xs">+{fw.tags.length - 4}</Badge>
                                               )}
                                             </div>
                                           )}
@@ -933,14 +980,12 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
                                           <div className="pt-3 flex gap-2">
                                             <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" asChild>
                                               <Link href={`/frameworks/${fw.id}`}>
-                                                <Eye className="mr-1.5 h-3.5 w-3.5" />
-                                                View
+                                                <Eye className="mr-1.5 h-3.5 w-3.5" /> View
                                               </Link>
                                             </Button>
                                             <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" asChild>
                                               <Link href={`/frameworks/${fw.id}/edit`}>
-                                                <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                                                Edit
+                                                <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
                                               </Link>
                                             </Button>
                                           </div>
@@ -964,6 +1009,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
         )}
       </div>
 
+      {/* ── Delete dialog ──────────────────────────────────────── */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -974,10 +1020,7 @@ export default function FrameworksIndex({ frameworks }: FrameworksIndexProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

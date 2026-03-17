@@ -19,6 +19,8 @@ use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\PredefinedTestRequirmentController;
+use App\Http\Controllers\TestResultController;
 
 // Page d'accueil publique
 Route::get('/', function () {
@@ -129,6 +131,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::patch('requirement-tests/{requirementTest}/reject', [RequirementTestController::class, 'reject'])
         ->name('requirement-tests.reject');
+    
+
+    // Accepter / Rejeter un résultat (validator)
+Route::get('/requirement-tests/export', [RequirementTestController::class, 'export'])
+    ->name('requirement-tests.export');
     Route::get('req-testing', [RequirementController::class, 'getRequirementsForTesting'])
         ->name('req-testing.index');
 
@@ -143,6 +150,36 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 Route::get('/requirement-tests/{requirementTest}', [RequirementTestController::class, 'show'])
     ->name('requirement-tests.show');
+//PredefinedTest
+   Route::get('/predefined-tests/export', [PredefinedTestRequirmentController::class, 'export'])
+    ->name('predefined-tests-requirement.export');
+     Route::get('/predefined-tests/requirement',
+        [PredefinedTestRequirmentController::class, 'index'])
+        ->name('predefined-tests-requirement.index');
+
+    Route::get('/predefined-tests/requirement/create',
+        [PredefinedTestRequirmentController::class, 'create'])
+        ->name('predefined-tests-requirement.create');
+
+    Route::post('/predefined-tests/requirement',
+        [PredefinedTestRequirmentController::class, 'store'])
+        ->name('predefined-tests-requirement.store');
+
+    Route::delete('/predefined-tests/requirement/{predefinedTest}',
+        [PredefinedTestRequirmentController::class, 'destroy'])
+        ->name('predefined-tests-requirement.destroy');
+        Route::get('predefined-tests-requirement/{predefinedTest}/edit', [PredefinedTestRequirmentController::class, 'edit'])
+    ->name('predefined-tests-requirement.edit');
+    Route::put('predefined-tests-requirement/{predefinedTest}', [PredefinedTestRequirmentController::class, 'update'])
+    ->name('predefined-tests-requirement.update');
+
+    Route::get('/requirements/{requirement}/predefined-tests/requirement',
+        [PredefinedTestRequirmentController::class, 'forRequirement'])
+        ->name('predefined-tests-requirement.predefined-tests');
+
+    Route::post('/test-results',
+        [TestResultController::class, 'store'])
+        ->name('test-results.store');
 });
 
 require __DIR__ . '/settings.php';

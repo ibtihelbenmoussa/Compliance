@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Switch } from '@/components/ui/switch'          // ← ajouté
 import { cn } from '@/lib/utils'
 import {
   ChevronLeft,
@@ -59,6 +60,7 @@ interface Requirement {
   completion_date: string | null
   compliance_level: string
   attachments: string | null
+  auto_validate: boolean          // ← ajouté
 }
 
 interface PageProps {
@@ -104,6 +106,7 @@ export default function EditRequirement() {
     completion_date: formatDateString(requirement.completion_date),
     compliance_level: requirement.compliance_level || '',
     attachments: requirement.attachments || '',
+    auto_validate: requirement.auto_validate ?? false,   // ← ajouté
   })
 
   const [deadlineOpen, setDeadlineOpen] = useState(false)
@@ -233,9 +236,10 @@ export default function EditRequirement() {
                 </div>
               </div>
 
-              <div className="grid gap-6 sm:grid-cols-3">
+              {/* Type / Status / Priority / Auto-validate — même layout que create */}
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
-                  <Label>Type <span className="text-red-500">*</span></Label>
+                  <Label>Type <span className="text-red-500 text-base">*</span></Label>
                   <Select value={data.type} onValueChange={v => { setData('type', v); clearErrors('type') }}>
                     <SelectTrigger className={cn('h-11', errors.type && 'border-destructive')}>
                       <SelectValue placeholder="Select type..." />
@@ -250,7 +254,7 @@ export default function EditRequirement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Status <span className="text-red-500">*</span></Label>
+                  <Label>Status <span className="text-red-500 text-base">*</span></Label>
                   <Select value={data.status} onValueChange={v => { setData('status', v); clearErrors('status') }}>
                     <SelectTrigger className={cn('h-11', errors.status && 'border-destructive')}>
                       <SelectValue placeholder="Select status..." />
@@ -265,7 +269,7 @@ export default function EditRequirement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Priority <span className="text-red-500">*</span></Label>
+                  <Label>Priority <span className="text-red-500 text-base">*</span></Label>
                   <Select value={data.priority} onValueChange={v => { setData('priority', v); clearErrors('priority') }}>
                     <SelectTrigger className={cn('h-11', errors.priority && 'border-destructive')}>
                       <SelectValue placeholder="Select priority..." />
@@ -277,6 +281,26 @@ export default function EditRequirement() {
                     </SelectContent>
                   </Select>
                   {errors.priority && <p className="text-sm text-destructive mt-1.5">{errors.priority}</p>}
+                </div>
+
+                {/* Auto-validate Switch — identique à create */}
+                <div className="space-y-2 flex flex-col justify-end pb-1.5">
+                  <div className="flex items-center space-x-3">
+                    <Switch
+                      id="auto-validate"
+                      checked={data.auto_validate}
+                      onCheckedChange={(checked) => setData('auto_validate', checked)}
+                    />
+                    <Label
+                      htmlFor="auto-validate"
+                      className="text-sm font-medium leading-none cursor-pointer"
+                    >
+                      Auto-validate tests
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Automatically accept tests created from predefined tests
+                  </p>
                 </div>
               </div>
 
@@ -445,13 +469,12 @@ export default function EditRequirement() {
                 </div>
               </div>
 
-              {/* ─── Tags ─── */}
+              {/* Tags */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
                   <TagIcon className="h-4 w-4" />
                   Tags
                 </Label>
-
                 <MultiSelect
                   options={tags.map((t) => ({
                     value: String(t.id),
@@ -461,15 +484,6 @@ export default function EditRequirement() {
                   onValueChange={(selected) => setData('tags', selected)}
                   placeholder="Select relevant tags..."
                 />
-                {/*  <MultiSelect
-                  options={tags.map(tag => ({
-                    value: tag.id.toString(),
-                    label: tag.name,
-                  }))}
-                  value={data.tags}
-                  onValueChange={selected => setData('tags', selected)}
-                 
-                /> */}
               </div>
 
               <div className="space-y-2">

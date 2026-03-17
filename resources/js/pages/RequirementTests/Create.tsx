@@ -1,37 +1,26 @@
 import { Head, useForm, router } from '@inertiajs/react'
 import { route } from 'ziggy-js'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AppLayout from '@/layouts/app-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Calendar } from '@/components/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { format } from 'date-fns'
-import { CalendarIcon, ChevronLeft, CheckCircle2 } from 'lucide-react'
+import { CalendarIcon, ChevronLeft, CheckCircle2, Sparkles, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
-interface Framework {
-  id: number
-  code: string
-  name: string
-}
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Requirement {
-  id: number
-  code: string
-  title: string
-  framework?: Framework | null
-}
+interface Framework { id: number; code: string; name: string }
+interface Requirement { id: number; code: string; title: string; framework?: Framework | null }
+interface Props { requirement: Requirement }
 
-interface Props {
-  requirement: Requirement
-}
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Create({ requirement }: Props) {
   const { data, setData, post, processing, errors, setError, clearErrors, recentlySuccessful } = useForm({
@@ -41,45 +30,48 @@ export default function Create({ requirement }: Props) {
     procedure:      '',
     status:         'pending',
     result:         '',
+    efficacy:       'effective',
     evidence:       '',
     requirement_id: requirement.id,
-    test_date:      format(new Date(), 'yyyy-MM-dd'), 
+    test_date:      format(new Date(), 'yyyy-MM-dd'),
     comment:        '',
-    efficacy:       '',
+    failure_reason: '',
   })
 
-  const [testDate, setTestDate] = useState<Date>(new Date()) // ← initialisé à aujourd'hui
+  const [autoFilled, setAutoFilled] = useState(false)
 
+  // ── Auto-fill depuis predefined test au chargement ──────────────────────────
+  useEffect(() => {
+    fetch(`/requirements/${requirement.id}/predefined-tests/requirement`)
+      .then(r => r.json())
+      .then(predefined => {
+        if (predefined && predefined.id) {
+          setData(prev => ({
+            ...prev,
+            test_code: predefined.test_code ?? '',
+            name:      predefined.test_name  ?? '',
+            objective: predefined.objective  ?? '',
+            procedure: predefined.procedure  ?? '',
+          }))
+          setAutoFilled(true)
+        }
+      })
+      .catch(() => {})
+  }, [requirement.id])
+
+  // ── Validation ──────────────────────────────────────────────────────────────
   const validateForm = () => {
     let isValid = true
     clearErrors()
 
-    if (!data.test_code.trim()) {
-      setError('test_code', 'Test Code is required')
-      isValid = false
-    }
-    if (!data.name.trim()) {
-      setError('name', 'Name is required')
-      isValid = false
-    }
-    if (!data.objective.trim()) {
-      setError('objective', 'Objective is required')
-      isValid = false
-    }
-    if (!data.procedure.trim()) {
-      setError('procedure', 'Procedure is required')
-      isValid = false
-    }
-    if (!data.status) {
-      setError('status', 'Status is required')
-      isValid = false
-    }
-    if (!data.result) {
-      setError('result', 'Result is required')
-      isValid = false
-    }
-    if (!data.efficacy) {
-      setError('efficacy', 'Efficacy is required')
+    if (!data.test_code.trim()) { setError('test_code', 'Test Code is required'); isValid = false }
+    if (!data.name.trim())      { setError('name', 'Name is required'); isValid = false }
+    if (!data.objective.trim()) { setError('objective', 'Objective is required'); isValid = false }
+    if (!data.procedure.trim()) { setError('procedure', 'Procedure is required'); isValid = false }
+    if (!data.result)           { setError('result', 'Result is required'); isValid = false }
+
+    if (data.result === 'non_compliant' && !data.failure_reason.trim()) {
+      setError('failure_reason', 'Reason for failure is required when result is non-compliant')
       isValid = false
     }
 
@@ -89,27 +81,31 @@ export default function Create({ requirement }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateForm()) return
-
     post(route('requirements.test.store', requirement.id), {
       preserveScroll: true,
-      onSuccess: () => {
-        window.location.href = route('req-testing.index')
-      },
+      onSuccess: () => { window.location.href = route('req-testing.index') },
     })
   }
 
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  const autoClass = (field: keyof typeof data) =>
+    autoFilled && data[field] ? 'border-primary/40 bg-primary/5' : ''
+
+  const AutoBadge = ({ field }: { field: keyof typeof data }) =>
+    autoFilled && data[field]
+      ? <Badge variant="outline" className="text-xs px-1.5 py-0 text-primary border-primary/30 ml-1">auto</Badge>
+      : null
+
   return (
-    <AppLayout
-      breadcrumbs={[
-        { title: 'Compliance Tests', href: route('req-testing.index') },
-        { title: 'Create Test', href: '' },
-      ]}
-    >
+    <AppLayout breadcrumbs={[
+      { title: 'Compliance Tests', href: route('req-testing.index') },
+      { title: 'Create Test', href: '' },
+    ]}>
       <Head title="New Compliance Test" />
 
       <div className="space-y-12 p-6 lg:p-10">
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 pb-6 border-b">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">New Compliance Test</h1>
@@ -129,16 +125,14 @@ export default function Create({ requirement }: Props) {
               )}
             </div>
           </div>
-
           <Button variant="outline" size="sm" asChild>
             <a href={route('req-testing.index')}>
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Back to List
+              <ChevronLeft className="mr-2 h-4 w-4" /> Back to List
             </a>
           </Button>
         </div>
 
-        {/* Succès */}
+        {/* ── Success ── */}
         {recentlySuccessful && (
           <Alert className="bg-emerald-950/50 border-emerald-800 text-emerald-100">
             <CheckCircle2 className="h-5 w-5 text-emerald-400" />
@@ -149,131 +143,68 @@ export default function Create({ requirement }: Props) {
           </Alert>
         )}
 
-        {/* Formulaire */}
+        {/* ── Auto-fill notice ── */}
+        {autoFilled && (
+          <Alert className="bg-primary/5 border-primary/20">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <AlertTitle className="text-primary">Form auto-filled from predefined test</AlertTitle>
+            <AlertDescription className="text-muted-foreground">
+              Fields marked{' '}
+              <Badge variant="outline" className="text-xs px-1.5 py-0 text-primary border-primary/30 mx-1">
+                auto
+              </Badge>{' '}
+              were pre-filled. You can still edit them before submitting.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* ── Form ── */}
         <Card className="border-none shadow-2xl bg-gradient-to-b from-card to-card/90 backdrop-blur-sm">
           <CardContent className="pt-10 pb-14 px-6 md:px-12 lg:px-16">
             <form onSubmit={handleSubmit} className="space-y-16">
 
-              {/* Basic Information */}
+              {/* ── Basic Information ── */}
               <div className="space-y-10">
                 <h2 className="text-2xl font-semibold tracking-tight border-b pb-4">
                   Basic Information
                 </h2>
 
+                {/* Test Code + Name */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Test Code */}
                   <div className="space-y-2">
                     <Label htmlFor="test_code" className="text-sm font-medium flex items-center gap-1.5">
                       Test Code <span className="text-red-500">*</span>
+                      <AutoBadge field="test_code" />
                     </Label>
                     <Input
                       id="test_code"
                       placeholder="TEST-2025-001"
                       value={data.test_code}
-                      onChange={e => {
-                        setData('test_code', e.target.value.trim().toUpperCase())
-                        if (errors.test_code) clearErrors('test_code')
-                      }}
-                      className={cn('h-11 text-base', errors.test_code && 'border-red-500 focus-visible:ring-red-500')}
+                      onChange={e => { setData('test_code', e.target.value.trim().toUpperCase()); if (errors.test_code) clearErrors('test_code') }}
+                      className={cn('h-11 text-base', autoClass('test_code'), errors.test_code && 'border-red-500')}
                       maxLength={50}
                     />
                     {errors.test_code && <p className="text-red-600 text-sm mt-1.5">{errors.test_code}</p>}
                   </div>
 
-                  {/* Name */}
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-sm font-medium flex items-center gap-1.5">
                       Name / Summary <span className="text-red-500">*</span>
+                      <AutoBadge field="name" />
                     </Label>
                     <Input
                       id="name"
                       placeholder="Quarterly access rights review"
                       value={data.name}
-                      onChange={e => {
-                        setData('name', e.target.value)
-                        if (errors.name) clearErrors('name')
-                      }}
-                      className={cn('h-11 text-base', errors.name && 'border-red-500 focus-visible:ring-red-500')}
+                      onChange={e => { setData('name', e.target.value); if (errors.name) clearErrors('name') }}
+                      className={cn('h-11 text-base', autoClass('name'), errors.name && 'border-red-500')}
                     />
                     {errors.name && <p className="text-red-600 text-sm mt-1.5">{errors.name}</p>}
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  {/* Status */}
-                  <div className="space-y-2">
-                    <Label htmlFor="status" className="text-sm font-medium flex items-center gap-1.5">
-                      Status <span className="text-red-500">*</span>
-                    </Label>
-                    <Select
-                      value={data.status}
-                      onValueChange={v => {
-                        setData('status', v)
-                        if (errors.status) clearErrors('status')
-                      }}
-                    >
-                      <SelectTrigger className={cn('h-11', errors.status && 'border-red-500')}>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {errors.status && <p className="text-red-600 text-sm mt-1.5">{errors.status}</p>}
-                  </div>
-
-                  {/* Result */}
-                  <div className="space-y-2">
-                    <Label htmlFor="result" className="text-sm font-medium flex items-center gap-1.5">
-                      Result <span className="text-red-500">*</span>
-                    </Label>
-                    <Select
-                      value={data.result}
-                      onValueChange={v => {
-                        setData('result', v)
-                        if (errors.result) clearErrors('result')
-                      }}
-                    >
-                      <SelectTrigger className={cn('h-11', errors.result && 'border-red-500')}>
-                        <SelectValue placeholder="Select result" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="compliant">Compliant</SelectItem>
-                        <SelectItem value="non_compliant">Non-compliant</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {errors.result && <p className="text-red-600 text-sm mt-1.5">{errors.result}</p>}
-                  </div>
-
-                  {/* Efficacy */}
-                  <div className="space-y-2">
-                    <Label htmlFor="efficacy" className="text-sm font-medium flex items-center gap-1.5">
-                      Efficacy <span className="text-red-500">*</span>
-                    </Label>
-                    <Select
-                      value={data.efficacy}
-                      onValueChange={v => {
-                        setData('efficacy', v)
-                        if (errors.efficacy) clearErrors('efficacy')
-                      }}
-                    >
-                      <SelectTrigger className={cn('h-11', errors.efficacy && 'border-red-500')}>
-                        <SelectValue placeholder="Select efficacy" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="effective">Effective</SelectItem>
-                        <SelectItem value="partially_effective">Partially Effective</SelectItem>
-                        <SelectItem value="ineffective">Ineffective</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {errors.efficacy && <p className="text-red-600 text-sm mt-1.5">{errors.efficacy}</p>}
-                  </div>
-                </div>
               </div>
 
-              {/* Test Details */}
+              {/* ── Test Details ── */}
               <div className="space-y-10">
                 <h2 className="text-2xl font-semibold tracking-tight border-b pb-4">
                   Test Details
@@ -284,16 +215,14 @@ export default function Create({ requirement }: Props) {
                   <div className="space-y-3">
                     <Label htmlFor="objective" className="text-sm font-medium flex items-center gap-1.5">
                       Objective <span className="text-red-500">*</span>
+                      <AutoBadge field="objective" />
                     </Label>
                     <Textarea
                       id="objective"
                       placeholder="Define what this test aims to verify..."
                       value={data.objective}
-                      onChange={e => {
-                        setData('objective', e.target.value)
-                        if (errors.objective) clearErrors('objective')
-                      }}
-                      className={cn('min-h-[120px] resize-y', errors.objective && 'border-red-500 focus-visible:ring-red-500')}
+                      onChange={e => { setData('objective', e.target.value); if (errors.objective) clearErrors('objective') }}
+                      className={cn('min-h-[120px] resize-y', autoClass('objective'), errors.objective && 'border-red-500')}
                     />
                     {errors.objective && <p className="text-red-600 text-sm mt-1.5">{errors.objective}</p>}
                   </div>
@@ -302,16 +231,14 @@ export default function Create({ requirement }: Props) {
                   <div className="space-y-3">
                     <Label htmlFor="procedure" className="text-sm font-medium flex items-center gap-1.5">
                       Procedure / Steps <span className="text-red-500">*</span>
+                      <AutoBadge field="procedure" />
                     </Label>
                     <Textarea
                       id="procedure"
                       placeholder="Step-by-step instructions to perform the test..."
                       value={data.procedure}
-                      onChange={e => {
-                        setData('procedure', e.target.value)
-                        if (errors.procedure) clearErrors('procedure')
-                      }}
-                      className={cn('min-h-[160px] resize-y', errors.procedure && 'border-red-500 focus-visible:ring-red-500')}
+                      onChange={e => { setData('procedure', e.target.value); if (errors.procedure) clearErrors('procedure') }}
+                      className={cn('min-h-[160px] resize-y', autoClass('procedure'), errors.procedure && 'border-red-500')}
                     />
                     {errors.procedure && <p className="text-red-600 text-sm mt-1.5">{errors.procedure}</p>}
                   </div>
@@ -329,56 +256,94 @@ export default function Create({ requirement }: Props) {
                       className="min-h-[140px] resize-y"
                     />
                   </div>
+
+                  {/* Comment */}
                   <div className="space-y-3">
-  <Label htmlFor="comment" className="text-sm font-medium">
-    Comment
-  </Label>
-  <Textarea
-    id="comment"
-    placeholder="Additional notes or observations about this test..."
-    value={data.comment}
-    onChange={e => setData('comment', e.target.value)}
-    className="min-h-[100px] resize-y"
-  />
-</div>
+                    <Label htmlFor="comment" className="text-sm font-medium">
+                      Comment
+                    </Label>
+                    <Textarea
+                      id="comment"
+                      placeholder="Additional notes or observations about this test..."
+                      value={data.comment}
+                      onChange={e => setData('comment', e.target.value)}
+                      className="min-h-[100px] resize-y"
+                    />
+                  </div>
 
-
-                  {/* Test Date ← renommé depuis effective_date */}
+                  {/* Test Date */}
                   <div className="space-y-3">
                     <Label className="text-sm font-medium flex items-center gap-1.5">
                       Test Date
                     </Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal h-11"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {testDate ? format(testDate, 'MMM dd, yyyy') : 'Pick a date'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={testDate}
-                          onSelect={date => {
-                            if (!date) return
-                            setTestDate(date)
-                            setData('test_date', format(date, 'yyyy-MM-dd'))
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal h-11 cursor-not-allowed opacity-60"
+                      disabled
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(new Date(), 'MMM dd, yyyy')}
+                    </Button>
                     <p className="text-xs text-muted-foreground">
-                      Par défaut : aujourd'hui ({format(new Date(), 'MMM dd, yyyy')})
+                      Automatically set to today's date.
                     </p>
                   </div>
+
+                  {/* Result */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium flex items-center gap-1.5">
+                      Result <span className="text-red-500">*</span>
+                      <AutoBadge field="result" />
+                    </Label>
+                    <Select
+                      value={data.result}
+                      onValueChange={v => {
+                        setData(prev => ({ ...prev, result: v, failure_reason: '' }))
+                        if (errors.result)         clearErrors('result')
+                        if (errors.failure_reason) clearErrors('failure_reason')
+                      }}
+                    >
+                      <SelectTrigger className={cn('h-11', autoClass('result'), errors.result && 'border-red-500')}>
+                        <SelectValue placeholder="Select result" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="compliant">Compliant</SelectItem>
+                        <SelectItem value="non_compliant">Non-compliant</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {errors.result && <p className="text-red-600 text-sm mt-1.5">{errors.result}</p>}
+                  </div>
+
+                  {/* ── Reason for failure — seulement si non_compliant ── */}
+                  {data.result === 'non_compliant' && (
+                    <div className="space-y-3 rounded-xl border border-red-500/30 bg-red-500/5 p-5">
+                      <Label htmlFor="failure_reason" className="text-sm font-medium flex items-center gap-2 text-red-500">
+                        <AlertCircle className="h-4 w-4" />
+                        Reason for failure <span className="text-red-500">*</span>
+                      </Label>
+                      <Textarea
+                        id="failure_reason"
+                        placeholder="Explain why this test is non-compliant..."
+                        value={data.failure_reason}
+                        onChange={e => {
+                          setData('failure_reason', e.target.value)
+                          if (errors.failure_reason) clearErrors('failure_reason')
+                        }}
+                        className={cn('min-h-[120px] resize-y bg-background', errors.failure_reason && 'border-red-500')}
+                      />
+                      {errors.failure_reason && (
+                        <p className="text-red-600 text-sm flex items-center gap-1.5">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          {errors.failure_reason}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Actions */}
+              {/* ── Actions ── */}
               <div className="flex flex-col sm:flex-row justify-end gap-4 pt-12 border-t">
                 <Button
                   type="button"
@@ -390,7 +355,6 @@ export default function Create({ requirement }: Props) {
                 >
                   Cancel
                 </Button>
-
                 <Button
                   type="submit"
                   disabled={processing}

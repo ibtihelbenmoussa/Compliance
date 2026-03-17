@@ -107,7 +107,7 @@ export default function ShowTest() {
   return (
     <AppLayout
       breadcrumbs={[
-        { title: 'Requirements', href: '/requirements' },
+        { title: 'Requirement tests', href: '/req-testing' },
         { title: requirement.code, href: '' },
       ]}
     >
@@ -141,7 +141,7 @@ export default function ShowTest() {
             </div>
           </div>
 
-          <Button variant="outline" size="sm" onClick={() => router.visit('/requirements')}>
+          <Button variant="outline" size="sm" onClick={() => router.visit('/req-testing')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to List
           </Button>

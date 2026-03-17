@@ -15,9 +15,15 @@ class RequirementTestPolicy
         return true;
     }
 
+    // ✅ Méthode manquante — à ajouter
+    public function viewAnyValidation(User $user): bool
+    {
+        return true; // Tous les utilisateurs connectés peuvent accéder
+    }
+
     public function create(User $user): bool
     {
-        return true; 
+        return true;
     }
 
     public function update(User $user, RequirementTest $test): bool

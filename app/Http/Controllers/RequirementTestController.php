@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\RequirementTestsExport;
 
 class RequirementTestController extends Controller
 {
@@ -127,7 +129,7 @@ public function show(RequirementTest $requirementTest)
     $requirement->process_name = $requirement->process?->name;
     $requirement->load('tags');
 
-    return Inertia::render('RequirementTests/show', [
+    return Inertia::render('RequirementTests/Show', [
         'requirement' => $requirement,
     ]);
 }
@@ -192,32 +194,52 @@ public function show(RequirementTest $requirementTest)
 
    
     public function storeForRequirement(Request $request, Requirement $requirement)
-    {
-        $data = $request->validate([
-            'test_code' => 'required|string|max:50|unique:requirement_tests,test_code',
-            'name'      => 'required|string',
-            'objective' => 'required|string',
-            'procedure' => 'required|string',
-            'status'    => 'required|string',
-            'result'    => 'required|string',
-            'efficacy'  => 'required|string',
-            'test_date' => 'nullable|date',             
-            'evidence'  => 'nullable|string',
-            'comment'   => 'nullable|string|max:2000', 
-        ]);
+{
+    $data = $request->validate([
+        'test_code' => 'required|string|max:50|unique:requirement_tests,test_code',
+        'name'      => 'required|string',
+        'objective' => 'required|string',
+        'procedure' => 'required|string',
+        'status'    => 'required|string',
+        'result'    => 'required|string',
+        'efficacy'  => 'required|string',
+        'test_date' => 'nullable|date',
+        'evidence'  => 'nullable|string',
+        'comment'   => 'nullable|string|max:2000',
+    ]);
 
-        $data['user_id']           = auth()->id();
-        $data['framework_id']      = $requirement->framework_id;
-        $data['validation_status'] = 'pending';
+    $data['user_id']      = auth()->id();
+    $data['framework_id'] = $requirement->framework_id;
+    $data['test_date']    = $data['test_date'] ?? now()->toDateString();
 
-        $data['test_date'] = $data['test_date'] ?? now()->toDateString();
+    // ✅ Auto-validate : si le requirement a auto_validate = true,
+    //    le test est directement accepté, sinon il reste en attente
+    $data['validation_status'] = $requirement->auto_validate ? 'accepted' : 'pending';
 
-        $requirement->tests()->create($data);
+    $test = $requirement->tests()->create($data);
 
-        return redirect('/req-testing')
-            ->with('success', 'Test créé avec succès !');
+    // ✅ Si auto-validé, mettre à jour la deadline du requirement
+    if ($requirement->auto_validate) {
+        $newDeadline = match (strtolower($requirement->frequency ?? '')) {
+            'daily'            => now()->addDay(),
+            'weekly'           => now()->addWeek(),
+            'monthly'          => now()->addMonth(),
+            'quarterly'        => now()->addMonths(3),
+            'yearly', 'annual' => now()->addYear(),
+            default            => null,
+        };
+
+        if ($newDeadline) {
+            $requirement->update(['deadline' => $newDeadline]);
+        }
     }
 
+    return redirect('/req-testing')
+        ->with('success', $requirement->auto_validate
+            ? 'Test créé et accepté automatiquement !'
+            : 'Test créé avec succès !'
+        );
+}
     
     public function accept(RequirementTest $requirementTest)
     {
@@ -273,4 +295,49 @@ public function show(RequirementTest $requirementTest)
             'tests' => $tests,
         ]);
     }
+    public function export(Request $request)
+{
+    $user         = Auth::user();
+    $currentOrgId = $user->current_organization_id;
+
+    if (!$currentOrgId) {
+        abort(403, 'No organization selected.');
+    }
+
+    $dateStr = $request->query('date', today()->format('Y-m-d'));
+    try {
+        $targetDate = Carbon::parse($dateStr)->startOfDay();
+    } catch (\Exception $e) {
+        $targetDate = today()->startOfDay();
+    }
+
+    $query = RequirementTest::query()
+        ->with([
+            'requirement:id,code,title,organization_id',
+            'user:id,name',
+            'framework:id,code,name',
+        ])
+        ->whereHas('requirement', fn($q) =>
+            $q->where('organization_id', $currentOrgId)
+              ->where('is_deleted', 0)
+        );
+
+    if ($request->filled('date')) {
+        $query->whereDate('test_date', $targetDate);
+    }
+
+    if ($search = trim($request->query('search', ''))) {
+        $query->whereHas('requirement', fn($q) =>
+            $q->where('code', 'like', "%{$search}%")
+              ->orWhere('title', 'like', "%{$search}%")
+        );
+    }
+
+    $tests = $query->latest('test_date')->get();
+
+    return Excel::download(
+        new RequirementTestsExport($tests),
+        'compliance-tests-' . $targetDate->format('Y-m-d') . '.xlsx'
+    );
+}
 }

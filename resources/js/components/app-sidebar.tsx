@@ -53,7 +53,7 @@ const data = {
             items: [
                 { title: 'Risks', url: '/risks' },
                 { title: 'Controls', url: '/controls' },
-                { title: 'Predefined Tests', url: '/predefined-tests' },
+              /*   { title: 'Predefined Tests', url: '/predefined-tests' }, */
             ],
         },
         {
@@ -75,8 +75,9 @@ const data = {
             items: [
                 { title: 'Frameworks', url: '/frameworks' },
                 { title: 'Requirements', url: '/requirements' },
+                { title: 'Predefined Tests', url: '/predefined-tests/requirement' },
                 { title: 'Requirement tests', url: '/req-testing' },
-             { title: 'Validation', url: '/requirement-tests/validation' },],
+                { title: 'Validation', url: '/requirement-tests/validation' },],
         },
     ],
 }

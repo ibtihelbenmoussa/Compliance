@@ -16,129 +16,8 @@ use Carbon\Carbon;
 class RequirementController extends Controller
 {
     /**
-     * Display a listing of the requirements with priority statistics.
+     * Liste des exigences avec statistiques de priorité
      */
-    /*  public function index(Request $request)
-     {
-         $user = Auth::user();
-         $currentOrgId = $user->current_organization_id;
-
-         if (!$currentOrgId) {
-             return redirect()->route('organizations.select.page')
-                 ->with('error', 'Please select an organization first.');
-         }
-
-         $query = Requirement::where('organization_id', $currentOrgId)
-             ->where('is_deleted', 0)
-             ->with(['framework', 'process','tags']);
-
-         // Recherche
-         if ($request->filled('search')) {
-             $search = $request->search;
-             $query->where(function ($q) use ($search) {
-                 $q->where('code', 'like', "%{$search}%")
-                     ->orWhere('title', 'like', "%{$search}%");
-             });
-         }
-
-         // Filtres
-         if ($request->filled('filter.status')) {
-             $query->where('status', $request->input('filter.status'));
-         }
-
-         if ($request->filled('filter.type') && $request->input('filter.type') !== 'all') {
-             $query->where('type', $request->input('filter.type'));
-         }
-
-         if ($request->filled('filter.priority') && $request->input('filter.priority') !== 'all') {
-             $query->where('priority', $request->input('filter.priority'));
-         }
-
-         // Tri
-         if ($request->filled('sort')) {
-             $sort = $request->sort;
-             $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
-             $column = ltrim($sort, '-');
-             $query->orderBy($column, $direction);
-         } else {
-             $query->orderBy('created_at', 'desc');
-         }
-
-         // Pagination
-         $requirements = $query->paginate(15)->withQueryString();
-
-         // Statistiques par priorité (sur toutes les exigences, pas seulement la page paginée)
-         $allForStats = Requirement::where('organization_id', $currentOrgId)
-             ->where('is_deleted', 0)
-             ->get(['priority']);
-
-         $total = $allForStats->count();
-         $lowCount = $allForStats->where('priority', 'low')->count();
-         $mediumCount = $allForStats->where('priority', 'medium')->count();
-         $highCount = $allForStats->where('priority', 'high')->count();
-
-         $lowPercent = $total > 0 ? round(($lowCount / $total) * 100) : 0;
-         $mediumPercent = $total > 0 ? round(($mediumCount / $total) * 100) : 0;
-         $highPercent = $total > 0 ? round(($highCount / $total) * 100) : 0;
-
-         // Transformation des tags pour l'affichage
-         $allTags = Tag::pluck('name', 'id')->toArray();
-
-         $requirementsTransformed = $requirements->getCollection()->map(function ($req) use ($allTags) {
-             $tagIds = json_decode($req->tags ?? '[]', true) ?? [];
-             $tags = collect($tagIds)
-                 ->map(fn($id) => $allTags[$id] ?? null)
-                 ->filter()
-                 ->values()
-                 ->toArray();
-
-             return [
-                 'id' => $req->id,
-                 'code' => $req->code,
-                 'title' => $req->title,
-                 'description' => $req->description,
-                 'type' => $req->type,
-                 'status' => $req->status,
-                 'priority' => $req->priority,
-                 'frequency' => $req->frequency,
-                 'framework' => $req->framework ? [
-                     'code' => $req->framework->code,
-                     'name' => $req->framework->name,
-                 ] : null,
-                 'process' => $req->process ? [
-                     'name' => $req->process->name,
-                 ] : null,
-                 'owner_id' => $req->owner_id,
-                 'tags' => $req->tags ? [
-                     'id' => $req->tags->id,
-                     'name' => $req->tags->name,
-                 ] : null,
-                 'deadline' => $req->deadline,
-                 'completion_date' => $req->completion_date,
-                 'compliance_level' => $req->compliance_level,
-                 'attachments' => $req->attachments,
-                 'created_at' => $req->created_at,
-                 'updated_at' => $req->updated_at,
-             ];
-         });
-
-         $requirements->setCollection($requirementsTransformed);
-
-         return Inertia::render('Requirements/Index', [
-             'requirements' => $requirements,
-             'stats' => [
-                 'total' => $total,
-                 'lowCount' => $lowCount,
-                 'mediumCount' => $mediumCount,
-                 'highCount' => $highCount,
-                 'lowPercent' => $lowPercent,
-                 'mediumPercent' => $mediumPercent,
-                 'highPercent' => $highPercent,
-             ],
-         ]);
-     } */
-
-
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -149,6 +28,9 @@ class RequirementController extends Controller
                 ->with('error', 'Please select an organization first.');
         }
 
+        $perPage = (int) $request->input('per_page', 10);
+        $perPage = in_array($perPage, [10, 15, 20, 30, 50]) ? $perPage : 10;
+
         $query = Requirement::where('organization_id', $currentOrgId)
             ->where('is_deleted', 0)
             ->with(['framework', 'process', 'tags']);
@@ -158,7 +40,7 @@ class RequirementController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('code', 'like', "%{$search}%")
-                    ->orWhere('title', 'like', "%{$search}%");
+                  ->orWhere('title', 'like', "%{$search}%");
             });
         }
 
@@ -177,148 +59,152 @@ class RequirementController extends Controller
 
         // Tri
         if ($request->filled('sort')) {
-            $sort = $request->sort;
+            $sort      = $request->sort;
             $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
-            $column = ltrim($sort, '-');
-            $query->orderBy($column, $direction);
+            $column    = ltrim($sort, '-');
+            $allowed   = ['code', 'title', 'type', 'status', 'priority', 'deadline', 'created_at'];
+            if (in_array($column, $allowed)) {
+                $query->orderBy($column, $direction);
+            }
         } else {
             $query->orderBy('created_at', 'desc');
         }
 
-        // Pagination
-        $requirements = $query->paginate(15)->withQueryString();
+        $requirements = $query->paginate($perPage)->withQueryString();
 
-        // Statistiques
-        $allForStats = Requirement::where('organization_id', $currentOrgId)
+        // Statistiques globales (indépendantes des filtres/pagination)
+        $statsQuery = Requirement::where('organization_id', $currentOrgId)
             ->where('is_deleted', 0)
-            ->get(['priority']);
+            ->selectRaw('priority, COUNT(*) as count')
+            ->groupBy('priority')
+            ->pluck('count', 'priority')
+            ->toArray();
 
-        $total = $allForStats->count();
-        $lowCount = $allForStats->where('priority', 'low')->count();
-        $mediumCount = $allForStats->where('priority', 'medium')->count();
-        $highCount = $allForStats->where('priority', 'high')->count();
+        $total         = array_sum($statsQuery);
+        $lowCount      = $statsQuery['low']    ?? 0;
+        $mediumCount   = $statsQuery['medium'] ?? 0;
+        $highCount     = $statsQuery['high']   ?? 0;
 
-        $lowPercent = $total > 0 ? round(($lowCount / $total) * 100) : 0;
+        $lowPercent    = $total > 0 ? round(($lowCount    / $total) * 100) : 0;
         $mediumPercent = $total > 0 ? round(($mediumCount / $total) * 100) : 0;
-        $highPercent = $total > 0 ? round(($highCount / $total) * 100) : 0;
+        $highPercent   = $total > 0 ? round(($highCount   / $total) * 100) : 0;
 
-        // Transformation
-        $requirementsTransformed = $requirements->getCollection()->map(function ($req) {
-
+        // Transformation pour Inertia
+        $requirements->through(function ($req) {
             return [
-                'id' => $req->id,
-                'code' => $req->code,
-                'title' => $req->title,
-                'description' => $req->description,
-                'type' => $req->type,
-                'status' => $req->status,
-                'priority' => $req->priority,
-                'frequency' => $req->frequency,
-
-                'framework' => $req->framework ? [
+                'id'               => $req->id,
+                'code'             => $req->code,
+                'title'            => $req->title,
+                'description'      => $req->description,
+                'type'             => $req->type,
+                'status'           => $req->status,
+                'priority'         => $req->priority,
+                'frequency'        => $req->frequency,
+                'framework'        => $req->framework ? [
                     'code' => $req->framework->code,
                     'name' => $req->framework->name,
                 ] : null,
-
-                'process' => $req->process ? [
+                'process'          => $req->process ? [
                     'name' => $req->process->name,
                 ] : null,
-
-                'owner_id' => $req->owner_id,
-
-                // tags many to many
-                'tags' => $req->tags->map(function ($tag) {
-                    return [
-                        'id' => $tag->id,
-                        'name' => $tag->name,
-                    ];
-                }),
-
-                'deadline' => $req->deadline,
-                'completion_date' => $req->completion_date,
+                'owner_id'         => $req->owner_id,
+                'tags'             => $req->tags->map(fn($tag) => [
+                    'id'   => $tag->id,
+                    'name' => $tag->name,
+                ])->toArray(),
+                'deadline'         => $req->deadline,
+                'completion_date'  => $req->completion_date,
                 'compliance_level' => $req->compliance_level,
-                'attachments' => $req->attachments,
-                'created_at' => $req->created_at,
-                'updated_at' => $req->updated_at,
+                'attachments'      => $req->attachments,
+                'created_at'       => $req->created_at,
+                'updated_at'       => $req->updated_at,
             ];
         });
-
-        $requirements->setCollection($requirementsTransformed);
 
         return Inertia::render('Requirements/Index', [
             'requirements' => $requirements,
             'stats' => [
-                'total' => $total,
-                'lowCount' => $lowCount,
-                'mediumCount' => $mediumCount,
-                'highCount' => $highCount,
-                'lowPercent' => $lowPercent,
+                'total'         => $total,
+                'lowCount'      => $lowCount,
+                'mediumCount'   => $mediumCount,
+                'highCount'     => $highCount,
+                'lowPercent'    => $lowPercent,
                 'mediumPercent' => $mediumPercent,
-                'highPercent' => $highPercent,
+                'highPercent'   => $highPercent,
             ],
         ]);
     }
 
+    /**
+     * Formulaire de création
+     */
     public function create()
     {
         return Inertia::render('Requirements/Create', [
             'frameworks' => Framework::select('id', 'code', 'name')->get(),
-            'processes' => Process::select('id', 'name')->get(),
-            'tags' => Tag::select('id', 'name')->get(),
+            'processes'  => Process::select('id', 'name')->get(),
+            'tags'       => Tag::select('id', 'name')->get(),
         ]);
-    }
-
-    public function store(Request $request)
-    {
-        //dd($request);
-        $user = Auth::user();
-        $currentOrgId = $user->current_organization_id;
-
-        $validated = $request->validate([
-            'code' => 'required|string|max:255|unique:requirements,code',
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'type' => 'required|in:regulatory,internal,contractual',
-            'status' => 'required|in:active,inactive,draft,archived',
-            'priority' => 'required|in:low,medium,high',
-            'frequency' => 'required|in:one_time,daily,weekly,monthly,quarterly,yearly,continuous',
-            'framework_id' => 'required|exists:frameworks,id',
-            'process_id' => 'nullable|exists:processes,id',
-            'owner_id' => 'nullable|string|max:255',
-            'tags' => 'nullable|array',
-            'tags.*' => 'string',
-            'deadline' => 'nullable|date',
-            'completion_date' => 'nullable|date',
-            'compliance_level' => 'required|in:Mandatory,Recommended,Optional',
-            'attachments' => 'nullable|string',
-        ]);
-
-        $requirement = Requirement::create([
-            'code' => $validated['code'],
-            'title' => $validated['title'],
-            'description' => $validated['description'] ?? null,
-            'type' => $validated['type'],
-
-            'status' => $validated['status'],
-            'priority' => $validated['priority'],
-            'frequency' => $validated['frequency'],
-            'framework_id' => $validated['framework_id'],
-            'process_id' => $validated['process_id'] ?? null,
-            'owner_id' => $user->id,
-            'deadline' => $validated['deadline'] ?? null,
-            'completion_date' => $validated['completion_date'] ?? null,
-            'compliance_level' => $validated['compliance_level'],
-            'attachments' => $validated['attachments'] ?? null,
-            'organization_id' => $currentOrgId,
-        ]);
-        $requirement->tags()->sync($validated['tags'] ?? []);
-
-        return redirect('/requirements')
-            ->with('success', 'Requirement created successfully.');
     }
 
     /**
-     * Display the specified requirement.
+     * Enregistrement d'une nouvelle exigence
+     */
+    public function store(Request $request)
+    {
+        $user = Auth::user();
+        $currentOrgId = $user->current_organization_id;
+
+        if (!$currentOrgId) {
+            abort(403, 'No organization selected.');
+        }
+
+        $validated = $request->validate([
+            'code'             => 'required|string|max:255|unique:requirements,code',
+            'title'            => 'required|string|max:255',
+            'description'      => 'nullable|string',
+            'type'             => 'required|in:regulatory,internal,contractual',
+            'status'           => 'required|in:active,draft,archived',
+            'priority'         => 'required|in:low,medium,high',
+            'frequency'        => 'required|in:one_time,daily,weekly,monthly,quarterly,yearly,continuous',
+            'framework_id'     => 'required|exists:frameworks,id',
+            'process_id'       => 'nullable|exists:processes,id',
+            'deadline'         => 'nullable|date',
+            'completion_date'  => 'nullable|date',
+            'compliance_level' => 'required|in:Mandatory,Recommended,Optional',
+            'attachments'      => 'nullable|string',
+            'tags'             => 'nullable|array',
+            'tags.*'           => 'integer|exists:tags,id',
+            'auto_validate'    => 'boolean',
+        ]);
+
+        $requirement = Requirement::create([
+            'code'             => $validated['code'],
+            'title'            => $validated['title'],
+            'description'      => $validated['description'] ?? null,
+            'type'             => $validated['type'],
+            'status'           => $validated['status'],
+            'priority'         => $validated['priority'],
+            'frequency'        => $validated['frequency'],
+            'framework_id'     => $validated['framework_id'],
+            'process_id'       => $validated['process_id'] ?? null,
+            'owner_id'         => $user->id,
+            'deadline'         => $validated['deadline'] ?? null,
+            'completion_date'  => $validated['completion_date'] ?? null,
+            'compliance_level' => $validated['compliance_level'],
+            'attachments'      => $validated['attachments'] ?? null,
+            'organization_id'  => $currentOrgId,
+            'auto_validate'    => $validated['auto_validate'] ?? false,
+        ]);
+
+        $requirement->tags()->sync($validated['tags'] ?? []);
+
+        return redirect()->route('predefined-tests-requirement.create')
+            ->with('success', 'Requirement créé avec succès.');
+    }
+
+    /**
+     * Affichage d'une exigence détaillée
      */
     public function show(Requirement $requirement)
     {
@@ -329,105 +215,82 @@ class RequirementController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        // Transformer les tags en noms lisibles
-      /*   $allTags = Tag::pluck('name', 'id')->toArray();
-
-        $tagIds = json_decode($requirement->tags ?? '[]', true) ?? [];
-        $requirement->tags_names = collect($tagIds)
-            ->map(fn($id) => $allTags[$id] ?? null)
-            ->filter()
-            ->values()
-            ->toArray(); */
-
-        $requirement->framework_name = $requirement->framework ? $requirement->framework->name : null;
-        $requirement->process_name = $requirement->process ? $requirement->process->name : null;
-
-        $requirement->load('tags');
+        $requirement->load('tags', 'framework', 'process');
 
         return Inertia::render('Requirements/Show', [
             'requirement' => $requirement,
-         
         ]);
     }
 
+    /**
+     * Formulaire d'édition
+     */
     public function edit(Requirement $requirement)
     {
         $user = Auth::user();
         $currentOrgId = $user->current_organization_id;
 
-        if ($requirement->organization_id != $currentOrgId) {
+        if ($requirement->organization_id != $currentOrgId || $requirement->is_deleted) {
             abort(403, 'Unauthorized');
         }
 
-        $frameworks = Framework::where('organization_id', $currentOrgId)
-            ->select('id', 'code', 'name')
-            ->get();
-
-        $processes = Process::select('id', 'name')->get();
-
         $requirement->load('tags');
 
-        $tags = Tag::where('organization_id', $currentOrgId)
-
-            ->get(['id', 'name']);
-
-
-
         return Inertia::render('Requirements/Edit', [
-            'requirement' => $requirement,
-            'frameworks' => $frameworks,
-            'processes' => $processes,
-            'tags' => $tags,
-            'selectedTagIds' => $requirement->tags->pluck('id')->map(fn($id) => (string) $id)->toArray(),
+            'requirement'    => $requirement,
+            'frameworks'     => Framework::where('organization_id', $currentOrgId)
+                                ->select('id', 'code', 'name')->get(),
+            'processes'      => Process::select('id', 'name')->get(),
+            'tags'           => Tag::where('organization_id', $currentOrgId)
+                                ->select('id', 'name')->get(),
+            'selectedTagIds' => $requirement->tags->pluck('id')->map(fn($id) => (string)$id)->toArray(),
         ]);
     }
 
     /**
-     * Update the requirement (clé : validation partielle pour permettre les mises à jour depuis Kanban)
+     * Mise à jour d'une exigence
      */
-    /*  public function update(Request $request, Requirement $requirement)
-     {
-
-         $user = Auth::user();
-         $currentOrgId = $user->current_organization_id;
-
-         if ($requirement->organization_id != $currentOrgId) {
-             abort(403, 'Unauthorized');
-         }
-
-         $validated = $request->validate([
-             'code' => 'sometimes|required|string|max:255|unique:requirements,code,' . $requirement->id,
-             'title' => 'sometimes|required|string|max:255',
-             'description' => 'nullable|string',
-             'type' => 'sometimes|required|in:regulatory,internal,contractual',
-             'status' => 'sometimes|required|in:active,inactive,draft,archived',
-             'priority' => 'sometimes|required|in:low,medium,high',
-             'frequency' => 'sometimes|required|in:one_time,daily,weekly,monthly,quarterly,yearly,continuous',
-             'framework_id' => 'sometimes|required|exists:frameworks,id',
-             'process_id' => 'sometimes|nullable|exists:processes,id',
-             'owner_id' => 'sometimes|nullable|string|max:255',
-             'tags' => 'sometimes|nullable|array',
-             'tags.*' => 'string',
-             'deadline' => 'sometimes|nullable|date',
-             'completion_date' => 'sometimes|nullable|date',
-             'compliance_level' => 'sometimes|required|in:Mandatory,Recommended,Optional',
-             'attachments' => 'sometimes|nullable|string',
-         ]);
-
-         $tags = array_map('intval', $request->tags ?? []);
-       //  dd($tags);
-         $requirement->tags()->sync($tags);
-         $requirement->update($validated);
-      //   $requirement->tags()->sync($tags);
-         /*     if ($request->has('tags')) {
-                 $requirement->tags = !empty($validated['tags']) ? json_encode($validated['tags']) : null;
-                 $requirement->saveQuietly(); // save sans toucher updated_at
-             } */
-
-    /* return back()->with('success', 'Requirement updated successfully.');
- } */
-
     public function update(Request $request, Requirement $requirement)
+    {
+        $user = Auth::user();
+        $currentOrgId = $user->current_organization_id;
+
+        if ($requirement->organization_id != $currentOrgId || $requirement->is_deleted) {
+            abort(403, 'Unauthorized');
+        }
+
+        $validated = $request->validate([
+            'code'             => 'sometimes|required|string|max:255|unique:requirements,code,' . $requirement->id,
+            'title'            => 'sometimes|required|string|max:255',
+            'description'      => 'nullable|string',
+            'type'             => 'sometimes|required|in:regulatory,internal,contractual',
+            'status'           => 'sometimes|required|in:active,draft,archived',
+            'priority'         => 'sometimes|required|in:low,medium,high',
+            'frequency'        => 'sometimes|required|in:one_time,daily,weekly,monthly,quarterly,yearly,continuous',
+            'framework_id'     => 'sometimes|required|exists:frameworks,id',
+            'process_id'       => 'sometimes|nullable|exists:processes,id',
+            'deadline'         => 'sometimes|nullable|date',
+            'completion_date'  => 'sometimes|nullable|date',
+            'compliance_level' => 'sometimes|required|in:Mandatory,Recommended,Optional',
+            'attachments'      => 'sometimes|nullable|string',
+            'tags'             => 'sometimes|nullable|array',
+            'tags.*'           => 'integer|exists:tags,id',
+            'auto_validate'    => 'sometimes|boolean',
+        ]);
+
+        $tags = $validated['tags'] ?? [];
+        unset($validated['tags']);
+
+        $requirement->update($validated);
+        $requirement->tags()->sync($tags);
+
+        return back()->with('success', 'Requirement updated successfully.');
+    }
+
+    /**
+     * Suppression logique (soft delete)
+     */
+    public function destroy(Requirement $requirement)
     {
         $user = Auth::user();
         $currentOrgId = $user->current_organization_id;
@@ -436,161 +299,185 @@ class RequirementController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $validated = $request->validate([
-            'code' => 'sometimes|required|string|max:255|unique:requirements,code,' . $requirement->id,
-            'title' => 'sometimes|required|string|max:255',
-            'description' => 'nullable|string',
-            'type' => 'sometimes|required|in:regulatory,internal,contractual',
-            'status' => 'sometimes|required|in:active,inactive,draft,archived',
-            'priority' => 'sometimes|required|in:low,medium,high',
-            'frequency' => 'sometimes|required|in:one_time,daily,weekly,monthly,quarterly,yearly,continuous',
-            'framework_id' => 'sometimes|required|exists:frameworks,id',
-            'process_id' => 'sometimes|nullable|exists:processes,id',
-            'owner_id' => 'sometimes|nullable|string|max:255',
-            'tags' => 'sometimes|nullable|array',
-            'tags.*' => 'integer',
-            'deadline' => 'sometimes|nullable|date',
-            'completion_date' => 'sometimes|nullable|date',
-            'compliance_level' => 'sometimes|required|in:Mandatory,Recommended,Optional',
-            'attachments' => 'sometimes|nullable|string',
-        ]);
-
-        // récupérer les tags
-        $tags = $validated['tags'] ?? [];
-
-        // supprimer tags du tableau pour éviter update dans requirements
-        unset($validated['tags']);
-
-        // update requirement
-        $requirement->update($validated);
-
-        // synchroniser les tags dans la table pivot
-        $requirement->tags()->sync($tags);
-
-        return back()->with('success', 'Requirement updated successfully.');
-    }
-    public function destroy(Requirement $requirement)
-    {
         $requirement->is_deleted = 1;
         $requirement->save();
 
-        return redirect('/requirements')
+        return redirect()->route('requirements.index')
             ->with('success', 'Requirement deleted successfully.');
     }
 
     /**
-     * Export filtered requirements to Excel
+     * Export Excel des exigences filtrées
      */
     public function export(Request $request)
+    {
+        $user = Auth::user();
+        $currentOrgId = $user->current_organization_id;
+
+        if (!$currentOrgId) {
+            abort(403, 'Please select an organization first.');
+        }
+
+        $query = Requirement::where('organization_id', $currentOrgId)
+            ->where('is_deleted', 0)
+            ->with(['framework', 'process', 'tags']);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('code', 'like', "%{$search}%")
+                  ->orWhere('title', 'like', "%{$search}%");
+            });
+        }
+
+        $requirements = $query->get();
+
+        $requirements->each(function ($req) {
+            $req->tags_names = $req->tags->pluck('name')->toArray();
+        });
+
+        return Excel::download(
+            new RequirementsExport($requirements),
+            'requirements-' . now()->format('Y-m-d-His') . '.xlsx'
+        );
+    }
+
+  
+  
+
+
+public function getRequirementsForTesting(Request $request)
 {
-    $user = Auth::user();
+    $user         = Auth::user();
     $currentOrgId = $user->current_organization_id;
 
     if (!$currentOrgId) {
-        abort(403, 'Please select an organization first.');
+        abort(403, 'No organization selected.');
     }
 
-    $query = Requirement::where('is_deleted', 0)
-        ->where('organization_id', $currentOrgId)
-        ->with(['framework', 'process', 'tags']); // ← ajouter tags
+    // ── Date cible ───────────────────────────────────────────────────────────
+    $dateStr = $request->query('date', today()->format('Y-m-d'));
+    try {
+        $targetDate = Carbon::parse($dateStr)->startOfDay();
+    } catch (\Exception $e) {
+        $targetDate = today()->startOfDay();
+    }
 
-    // Recherche
-    if ($request->filled('search')) {
-        $search = $request->search;
+    // ── Paramètres ───────────────────────────────────────────────────────────
+    $search  = trim($request->query('search', ''));
+    $perPage = (int) $request->input('per_page', 15);
+    $perPage = in_array($perPage, [10, 15, 20, 30, 50]) ? $perPage : 15;
+
+    // ── Query de base ────────────────────────────────────────────────────────
+    $query = Requirement::query()
+        ->where('organization_id', $currentOrgId)
+        ->where('is_deleted', 0)
+        ->with([
+            'framework:id,code,name',
+            'process:id,name',
+            'tags:id,name',
+            'tests' => function ($q) use ($targetDate) {
+                $q->whereDate('test_date', $targetDate)
+                  ->latest('created_at')
+                  ->limit(1)
+                  ->select([
+                      'id',
+                      'requirement_id',
+                      'validation_status',
+                      'validation_comment',
+                      'test_date',
+                      'created_at',
+                  ]);
+            },
+        ])
+        // Garder uniquement les requirements pertinents pour la date cible
+        ->where(function ($q) use ($targetDate) {
+
+            // 1) A déjà un test ce jour-là (peu importe la fréquence)
+            $q->whereHas('tests', fn($sub) =>
+                $sub->whereDate('test_date', $targetDate)
+            )
+
+            // 2) one_time : deadline exactement ce jour
+            ->orWhere(fn($q2) =>
+                $q2->where('frequency', 'one_time')
+                   ->whereDate('deadline', $targetDate)
+            )
+
+            // 3) daily : deadline <= aujourd'hui
+            ->orWhere(fn($q2) =>
+                $q2->where('frequency', 'daily')
+                   ->whereDate('deadline', '<=', $targetDate)
+            )
+
+            // 4) weekly : même jour de semaine, deadline <= aujourd'hui
+            ->orWhere(fn($q2) =>
+                $q2->where('frequency', 'weekly')
+                   ->whereRaw('DAYOFWEEK(deadline) = ?', [$targetDate->dayOfWeek + 1])
+                   ->whereDate('deadline', '<=', $targetDate)
+            )
+
+            // 5) monthly : même jour du mois, deadline <= aujourd'hui
+            ->orWhere(fn($q2) =>
+                $q2->where('frequency', 'monthly')
+                   ->whereRaw('DAY(deadline) = ?', [$targetDate->day])
+                   ->whereDate('deadline', '<=', $targetDate)
+            )
+
+            // 6) quarterly : même jour + même modulo de mois
+            ->orWhere(fn($q2) =>
+                $q2->where('frequency', 'quarterly')
+                   ->whereRaw('DAY(deadline) = ?', [$targetDate->day])
+                   ->whereRaw('MOD(MONTH(deadline), 3) = MOD(?, 3)', [$targetDate->month])
+                   ->whereDate('deadline', '<=', $targetDate)
+            )
+
+            // 7) yearly : même jour + même mois
+            ->orWhere(fn($q2) =>
+                $q2->where('frequency', 'yearly')
+                   ->whereRaw('DAY(deadline) = ?', [$targetDate->day])
+                   ->whereRaw('MONTH(deadline) = ?', [$targetDate->month])
+                   ->whereDate('deadline', '<=', $targetDate)
+            )
+
+            // 8) continuous : toujours visible
+            ->orWhere('frequency', 'continuous');
+        });
+
+    // ── Recherche ────────────────────────────────────────────────────────────
+    if ($search !== '') {
         $query->where(function ($q) use ($search) {
             $q->where('code', 'like', "%{$search}%")
               ->orWhere('title', 'like', "%{$search}%");
         });
     }
 
-    // Filtres
-    if ($request->filled('filter.status')) {
-        $query->where('status', $request->input('filter.status'));
-    }
-
-    if ($request->filled('filter.type') && $request->input('filter.type') !== 'all') {
-        $query->where('type', $request->input('filter.type'));
-    }
-
-    if ($request->filled('filter.priority') && $request->input('filter.priority') !== 'all') {
-        $query->where('priority', $request->input('filter.priority'));
-    }
-
-    // Tri
+    // ── Tri ──────────────────────────────────────────────────────────────────
     if ($request->filled('sort')) {
-        $sort = $request->sort;
+        $sort      = $request->sort;
         $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
-        $column = ltrim($sort, '-');
-        $query->orderBy($column, $direction);
+        $column    = ltrim($sort, '-');
+        $allowed   = ['code', 'title', 'frequency', 'deadline'];
+        $query->orderBy(in_array($column, $allowed) ? $column : 'code', $direction);
     } else {
-        $query->orderBy('created_at', 'desc');
+        $query->orderBy('code');
     }
 
-    $requirements = $query->get();
+    $requirements = $query->paginate($perPage)->withQueryString();
 
-    // Transformation des tags pivot pour export
-    $requirements->each(function ($req) {
-        $req->tags_names = $req->tags->pluck('name')->toArray(); 
+    // ── Injecter les infos du dernier test sur chaque item ───────────────────
+    $requirements->through(function (Requirement $req) {
+        $latestTest               = $req->tests->first();
+        $req->latest_test_status  = $latestTest?->validation_status  ?? null;
+        $req->latest_test_comment = $latestTest?->validation_comment ?? null;
+        $req->latest_test_id      = $latestTest?->id                 ?? null;
+        return $req;
     });
 
-    return Excel::download(
-        new RequirementsExport($requirements),
-        'requirements-' . now()->format('Y-m-d-His') . '.xlsx'
-    );
-}
-    /**
-     * Afficher l'interface de test pour les exigences
-     */
-    public function getRequirementsForTesting(Request $request)
-    {
-        $user = Auth::user();
-        $currentOrgId = $user->current_organization_id;
-
-        $date = $request->query('date')
-            ? Carbon::parse($request->query('date'))
-            : Carbon::today();
-
-        $requirements = Requirement::with('framework') // ← ajout de la relation
-            ->where('organization_id', $currentOrgId)
-            ->where('is_deleted', 0)
-            ->get();
-
-        $toTest = $requirements->filter(function ($req) use ($date) {
-            if (!$req->deadline) {
-                return false;
-            }
-
-            $deadline = Carbon::parse($req->deadline);
-
-            switch ($req->frequency) {
-                case 'one_time':
-                    return $deadline->isSameDay($date);
-                case 'daily':
-                    return $deadline->lessThanOrEqualTo($date);
-                case 'weekly':
-                    return $deadline->dayOfWeek === $date->dayOfWeek
-                        && $deadline->lessThanOrEqualTo($date);
-                case 'monthly':
-                    return $deadline->day === $date->day
-                        && $deadline->lessThanOrEqualTo($date);
-                case 'quarterly':
-                    return $deadline->month % 3 === $date->month % 3
-                        && $deadline->day === $date->day
-                        && $deadline->lessThanOrEqualTo($date);
-                case 'yearly':
-                    return $deadline->month === $date->month
-                        && $deadline->day === $date->day
-                        && $deadline->lessThanOrEqualTo($date);
-                case 'continuous':
-                    return true;
-                default:
-                    return false;
-            }
-        });
-
-        return Inertia::render('RequirementTests/Index', [
-            'date' => $date->toDateString(),
-            'requirements' => $toTest->values()
-        ]);
-    }
-}
+    return Inertia::render('RequirementTests/Index', [
+        'requirements' => $requirements,   // ← PaginatedData ✅ (plus une collection simple)
+        'date'         => $targetDate->format('Y-m-d'),
+        'isToday'      => $targetDate->isToday(),
+        'filters'      => $request->only(['search', 'date']),
+    ]);
+}}

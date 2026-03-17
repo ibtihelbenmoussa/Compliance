@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Switch } from '@/components/ui/switch'          // ← ajouté
 import { cn } from '@/lib/utils'
 import {
   ChevronLeft,
@@ -79,6 +80,7 @@ export default function CreateRequirement() {
     completion_date: '',
     compliance_level: '',
     attachments: '',
+    auto_validate: false,           // ← NOUVEAU champ
   })
 
   const [deadlineOpen, setDeadlineOpen] = useState(false)
@@ -87,7 +89,7 @@ export default function CreateRequirement() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Simple client-side validation
+    // Validation minimale côté client
     if (!data.code.trim()) return setError('code', 'Code is required')
     if (!data.title.trim()) return setError('title', 'Title is required')
     if (!data.type) return setError('type', 'Type is required')
@@ -115,8 +117,8 @@ export default function CreateRequirement() {
     >
       <Head title="Create Requirement" />
 
- <div className="space-y-6 p-4">
-          {/* Header */}
+      <div className="space-y-6 p-4">
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Create Requirement</h1>
@@ -191,9 +193,9 @@ export default function CreateRequirement() {
                 </div>
               </div>
 
-              <div className="grid gap-6 sm:grid-cols-3">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
-                  <Label>Type <span className="text-red-500">*</span></Label>
+                  <Label>Type <span className="text-red-500 text-base">*</span></Label>
                   <Select
                     value={data.type}
                     onValueChange={(v) => {
@@ -214,7 +216,7 @@ export default function CreateRequirement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Status <span className="text-red-500">*</span></Label>
+                  <Label>Status <span className="text-red-500 text-base">*</span></Label>
                   <Select
                     value={data.status}
                     onValueChange={(v) => {
@@ -235,7 +237,7 @@ export default function CreateRequirement() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Priority <span className="text-red-500">*</span></Label>
+                  <Label>Priority <span className="text-red-500 text-base">*</span></Label>
                   <Select
                     value={data.priority}
                     onValueChange={(v) => {
@@ -253,6 +255,25 @@ export default function CreateRequirement() {
                     </SelectContent>
                   </Select>
                   {errors.priority && <p className="text-sm text-destructive mt-1.5">{errors.priority}</p>}
+                </div>
+
+                <div className="space-y-2 flex flex-col justify-end pb-1.5">
+                  <div className="flex items-center space-x-3">
+                    <Switch
+                      id="auto-validate"
+                      checked={data.auto_validate}
+                      onCheckedChange={(checked) => setData('auto_validate', checked)}
+                    />
+                    <Label
+                      htmlFor="auto-validate"
+                      className="text-sm font-medium leading-none cursor-pointer"
+                    >
+                      Auto-validate tests
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Automatically accept tests created from predefined tests
+                  </p>
                 </div>
               </div>
 
@@ -336,7 +357,7 @@ export default function CreateRequirement() {
             </CardContent>
           </Card>
 
-          {/* Section 2 – Details & Context */}
+          {/* Section 2 – Details & Context (inchangée) */}
           <Card className="border shadow-sm">
             <CardHeader className="pb-4">
               <div className="flex items-center gap-3">
